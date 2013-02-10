@@ -1,0 +1,157 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+   <head>
+   <title>Anna's Compiler</title>
+   <style type="text/css">
+   #taSourceCode{
+      width:500px;
+      height:510px;
+      white-space: nowrap; 
+      overflow: auto;
+   }
+   .textAreaWithLines{
+      font-family:courier;      
+      border:1px solid #F00;
+      
+   }
+   .textAreaWithLines textarea,.textAreaWithLines div{
+      border:0px;
+      line-height:120%;
+      font-size:12px;
+   }
+   .lineObj{
+      color:red;
+   }
+   </style>
+
+   <script type="text/javascript" src="utils.js"></script>	
+   <script type="text/javascript" src="lexer.js"></script>
+
+   <script type="text/javascript">
+   
+   var lineObjOffsetTop = 2;
+   
+   function createTextAreaWithLines(id)
+   {
+      var el = document.createElement('DIV');
+      var ta = document.getElementById(id);
+      ta.parentNode.insertBefore(el,ta);
+      el.appendChild(ta);
+      
+      el.className='textAreaWithLines';
+      el.style.width = (ta.offsetWidth + 30) + 'px';
+      ta.style.position = 'absolute';
+      ta.style.left = '30px';
+      el.style.height = (ta.offsetHeight + 2) + 'px';
+      el.style.overflow='hidden';
+      el.style.position = 'relative';
+      el.style.width = (ta.offsetWidth + 30) + 'px';
+      var lineObj = document.createElement('DIV');
+      lineObj.style.position = 'absolute';
+      lineObj.style.top = lineObjOffsetTop + 'px';
+      lineObj.style.left = '0px';
+      lineObj.style.width = '27px';
+      el.insertBefore(lineObj,ta);
+      lineObj.style.textAlign = 'right';
+      lineObj.className='lineObj';
+      var string = '';
+      for(var no=1;no<200;no++){
+         if(string.length>0)string = string + '<br>';
+         string = string + no;
+      }
+      
+      ta.onkeydown = function() { positionLineObj(lineObj,ta); };
+      ta.onmousedown = function() { positionLineObj(lineObj,ta); };
+      ta.onscroll = function() { positionLineObj(lineObj,ta); };
+      ta.onblur = function() { positionLineObj(lineObj,ta); };
+      ta.onfocus = function() { positionLineObj(lineObj,ta); };
+      ta.onmouseover = function() { positionLineObj(lineObj,ta); };
+      lineObj.innerHTML = string;
+      
+   }
+   
+   function positionLineObj(obj,ta)
+   {
+      obj.style.top = (ta.scrollTop * -1 + lineObjOffsetTop) + 'px';   
+   
+      
+   }
+   
+function init()
+    {
+        // Clear the message box.
+        document.getElementById("taOutput").value = "";
+        // Set the initial values for our globals.
+        tokens = "";
+        tokenIndex = 0;
+        currentToken = ' ';
+        errorCount = 0;        
+    }
+    
+    function btnCompile_click()
+    {        
+        // This is executed as a result of the usr pressing the 
+        // "compile" button between the two text areas, above.  
+        // Note the <input> element's event handler: onclick="btnCompile_click();
+        init();
+        putMessage("Compilation Started");
+        // Grab the tokens from the lexer . . .
+        tokens = lex();
+        putMessage("Lex returned [" + tokens + "]");
+        // . . . and parse!
+      //  parse();
+    }
+    
+    function putMessage(msg)
+    {
+        document.getElementById("taOutput").value += msg + "\n";
+    }
+
+   </script>
+   
+   </head>   
+   <body>
+<h1>Anna's Compiler Project</h1>
+    <p>
+        . . . <em>a simple parser for a simple grammar</em>:
+    </p>
+    <pre>
+Program       ::== Statement $
+Statement     ::== P ( Expr )
+              ::== Id = Expr
+              ::== VarDecl
+              ::== { StatementList }
+StatementList ::== Statement StatementList
+              ::== <epsilon>
+Expr          ::== IntExpr
+              ::== CharExpr
+              ::== Id
+IntExpr       ::== digit op Expr
+              ::== digit
+CharExpr      ::== " CharList "
+CharList      ::== Char CharList
+              ::== <epsilon>
+VarDecl       ::== Type Id
+Type          ::== int | char
+Id            ::== Char
+Char          ::== a | b | c ... z
+digit         ::== 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 0
+op            ::== + | -
+    </pre>   
+   <form id="myform">
+   <textarea id="taSourceCode">
+   
+   
+   </textarea>
+   </form>
+   <script type="text/javascript">
+   createTextAreaWithLines('taSourceCode');
+   </script>
+<textarea id="taOutput" cols="50" rows="18"></textarea>
+        <br>
+        <input type="button" id="btnCompile" value="Compile" onclick="btnCompile_click();"/>
+        <br>
+
+
+   </body>
+</html>
