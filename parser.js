@@ -12,7 +12,7 @@
 	var nextToken = new Token();
 	
          function parse() {
-	    putMessage("taOutput","parse()");
+	    say("parse()");
 	    var results = kFailure;
 	    results = parseProgram();
 	    return results;

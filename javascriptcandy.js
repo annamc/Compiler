@@ -1,3 +1,9 @@
+/* Anna Clayton */
+/* February 2013 */
+/* javascriptcandy.js  */
+/* Tools to do neat things in the compiler.  Sources listed. */
+/* Textarea line numbers: http://www.dhtmlgoodies.com/forum/viewtopic.php?t=506 */
+
 var lineObjOffsetTop = 2;
    
    function createTextAreaWithLines(id)

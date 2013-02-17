@@ -1,110 +1,105 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <html>
    <head>
-   <title>Anna's Compiler</title>
-   <link rel="stylesheet" type="text/css" href="style.css" />
-	
-   <script type="text/javascript" src="utils.js"></script>
-   <script type="text/javascript" src="lexer.js"></script>	
-   <script type="text/javascript" src="parser.js"></script>
-
-   <script type="text/javascript" src="javascriptcandy.js"></script>
-   
-   <script type="text/javascript">
-   
-function init()
-    {
-        // Clear the message box.
-        document.getElementById("taOutput").value = "";
-        // Set the initial values for our globals.
-        tokens = "";
-        tokenIndex = 0;
-        currentToken = ' ';
-        errorCount = 0;
-        idList = new Array();
-    }
-    
-    function btnCompile_click()
-    {        
-        // This is executed as a result of the usr pressing the 
-        // "compile" button between the two text areas, above.  
-        // Note the <input> element's event handler: onclick="btnCompile_click();
-        init();
-        putMessage("taOutput","Compilation Started");
-        // Grab the tokens from the lexer . . .
-        tokens = lex(idList);
-//        for (var identifier in idList)
-//	    putMessage("taOutput",identifier + ":" + idList[identifier])
-        if (tokens[0] == eErrorsFound) {
-          putMessage("taOutput","Lex errors found!");
-          //for (var e=1; e<tokens.length; e++) {
-          //  putMessage("taOutput"," " + tokens[e]);
-          //}
-        }
-        else {
-          putMessage("taOutput","Lex was successful!");
-          //for (var e=0; e<tokens.length; e++) {
-          //  putMessage("taOutput"," " + tokens[e]);
-          //}
-          // ... and parse!
-          parse();
-
-        }
-        
-    }
-        
-    function putMessage(area,msg)
-    {
-        document.getElementById(area).value += msg + "\n";
-    }
-
-   </script>
-   
+      <title>Anna's Compiler</title>
+      <link rel="stylesheet" type="text/css" href="style.css" />
+      <script type="text/javascript" src="utils.js"></script>
+      <script type="text/javascript" src="lexer.js"></script>      
+      <script type="text/javascript" src="parser.js"></script>
+      <script type="text/javascript" src="javascriptcandy.js"></script>
+      
+      <script type="text/javascript">
+         function init() {
+           // Clear the message boxes.
+           document.getElementById("taOutput").value = "";
+           document.getElementById("ta1").value = "";
+           document.getElementById("ta2").value = "";
+           document.getElementById("ta3").value = "";
+           // Set the initial values for globals.
+           idList = new Array();
+         }
+       
+         function btnCompile_click() {        
+           // This is executed as a result of the user pressing the 
+           // "compile" button.
+           // Note the <input> element's event handler: onclick="btnCompile_click();
+           init();
+           putMessage("taOutput","Compilation Started");
+           // Grab the tokens from the lexer . . .
+           tokens = lex(idList);
+           // If the lexer found errors, the first token will be constant eErrorsFound.
+           // If this happens, indicate errors were found and print all errors.
+           // Lex is allowed to find multiple errors.
+           // If lex finds errors, don't parse
+           if (tokens[0] == eErrorsFound) {
+             putMessage("taOutput","Lex errors found!");
+             for (var e=1; e<tokens.length; e++) {
+               putMessage("taOutput"," " + tokens[e]);
+             }
+           }
+           // Otherwise lex found no errors.
+           // Indicate lex was successful and output all tokens,
+           // then kick off parse.  
+           else {
+             putMessage("taOutput","Lex was successful!");
+             for (var e=0; e<tokens.length; e++) {
+               putMessage("taOutput"," " + tokens[e]);
+            }
+            parse();
+           }
+       }
+           
+       function putMessage(area,msg)
+       {
+           document.getElementById(area).value += msg + "\n";
+       }
+      </script>
    </head>   
    <body>
-<h1>Anna's Compiler Project</h1>
-    <p>
-        . . . <em>a simple parser for a simple grammar</em>:
-    </p>
-   <form id="myform">
-   <textarea id="taSourceCode">
-   
-   
-   </textarea>
-   </form>
-   <script type="text/javascript">
-     createTextAreaWithLines('taSourceCode');
-   </script>
-   <input type="button" id="btnCompile" value="Compile" onclick="btnCompile_click();"/>
-        <br>
-   <br>
-Lex/Parse Output<br><textarea id="taOutput"></textarea><br>
-Parse Tree<br><textarea id="taParseTree"></textarea><br>
-Environment<br><textarea id="taEnvironments"></textarea><br>
-Trace<br><textarea id="taTrace"></textarea><br>
-
-   </body>
-       <pre>
+      <table width=100% border=0 cellpadding=5>
+         <tr height = 100%>
+            <td width=30% align=center valign=top>
+               <h1>Anna's Compiler Project</h1>
+               <p>. . . <em>a simple parser for a simple grammar</em></p>
+               <form id="myform">
+                  <textarea id="taSourceCode"></textarea>
+               </form>
+               <script type="text/javascript">createTextAreaWithLines('taSourceCode');</script>
+               <center><input type="button" id="btnCompile" value="Compile" onclick="btnCompile_click();"/></center>
+               <h5>
+               <pre>
 Program       ::== Statement $
 Statement     ::== P ( Expr )
-              ::== Id = Expr
-              ::== VarDecl
-              ::== { StatementList }
+	      ::== Id = Expr
+	      ::== VarDecl
+	      ::== { StatementList }
 StatementList ::== Statement StatementList
-              ::== E
+	      ::== <i>epsilon</i>
 Expr          ::== IntExpr
-              ::== CharExpr
-              ::== Id
+	      ::== CharExpr
+	      ::== Id
 IntExpr       ::== digit op Expr
-              ::== digit
+	      ::== digit
 CharExpr      ::== " CharList "
 CharList      ::== Char CharList
-              ::== E
+	      ::== <i>epsilon</i>
 VarDecl       ::== Type Id
 Type          ::== int | char
 Id            ::== Char
 Char          ::== a | b | c ... z
 digit         ::== 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 0
 op            ::== + | -
-    </pre>   
+               </pre>	
+            </td>
+            <td width=70% align=left align=top>
+               <br>
+               Lex/Parse Output<br><textarea id="taOutput"></textarea><br>
+               <br><textarea id="ta1"></textarea><br>
+               <br><textarea id="ta2"></textarea><br>
+               <br><textarea id="ta3"></textarea><br>
+            </td>
+         </tr>
+      </table>
+      <center>2013, Anna Clayton</center>
+   </body>
 </html>

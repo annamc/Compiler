@@ -1,3 +1,9 @@
+/* Anna Clayton */
+/* February 2013 */
+/* style.css */
+/* http://www.w3schools.com/cssref/css_colornames.asp */
+/* http://stackoverflow.com/questions/657795/how-remove-wordwrap-from-textarea */
+
    #taSourceCode{
 	width:300px;
 	height:300px;
@@ -6,32 +12,32 @@
 	resize: none;
    }
    #taOutput{
-	width:900px;
-	height:200px;
+	width:600px;
+	height:150px;
 	border-color: blue;
 	border-width: thin;
 	padding: 3px;
 	resize: none;
    }
-   #taParseTree{
-	width:900px;
-	height:200px;
+   #ta1{
+	width:600px;
+	height:150px;
 	border-color: fuchsia;
 	border-width: thin;
 	padding: 3px;
 	resize: none;
    }
-   #taEnvironments{
-	width:900px;
-	height:200px;
+   #ta2{
+	width:600px;
+	height:150px;
 	border-color: aqua;
 	border-width: thin;
 	padding: 3px;
 	resize: none;
    }
-   #taTrace{
-	width:900px;
-	height:200px;
+   #ta3{
+	width:600px;
+	height:150px;
 	border-color: lime;
 	border-width: thin;
 	padding: 3px;
@@ -50,3 +56,5 @@
    .lineObj{
       color:red;
    }
+   
+  H5 { text-align: left}
