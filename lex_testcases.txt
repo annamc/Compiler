@@ -1,0 +1,88 @@
+/* Anna Clayton */
+/* February 2013 */
+/* testcases.txt  */
+
+/* Test 1: Lex processes a charlist */
+{
+"anna"
+} $
+
+/* Test 2: Lex fails for invalid lexeme */
+{
+bad
+} $
+
+/* Test 3: Lex fails for invalid character in a charlist */
+{
+"$"
+} $
+
+/* Test 4: Lex fails for unterminated string */
+{
+"anna
+} $
+
+/* Test 5: Lex fails for int with a length > 1 */
+{
+42
+} $
+
+/* Test 6: Lex recognizes "int" type */
+{
+int a
+} $
+
+/* Test 7: Lex recognizes "char" type */
+{
+char b
+} $
+
+/* Test 8: Lex properly treats "int" as a char string if it's in quotes */
+{
+"int"
+} $
+
+/* Test 9: Lex properly treats "char" as a char string if it's in quotes */
+{
+P("char")
+} $
+
+/* Test 10: Lex doesn't recognize capital letters */
+{
+A
+} $
+
+/* Test 11: Lex recognizes +, -, and = */
+{
+a = 1+2-3
+} $
+
+/* Test 12: Lex recognizes P */
+{
+P(a)
+} $
+
+/* Test 13: Lex gives a warning for a missing $ meta-symbol */
+{
+int a
+a = 5
+P(a)
+}
+
+/* Test 14: Lex ignores input found after the $ meta-symbol and issues a warning */
+{
+int a
+} $
+int b
+
+/* Test 15: Lex ignores whitespace */
+{
+P  (    1 +2  )
+} $
+
+/* Test 16: Lex doesn't require whitespace */
+{
+{a=5}P(1+2)P(a)
+} $
+
+

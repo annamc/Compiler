@@ -1,0 +1,52 @@
+   #taSourceCode{
+	width:300px;
+	height:300px;
+	white-space: nowrap; 
+	overflow: auto;
+	resize: none;
+   }
+   #taOutput{
+	width:900px;
+	height:200px;
+	border-color: blue;
+	border-width: thin;
+	padding: 3px;
+	resize: none;
+   }
+   #taParseTree{
+	width:900px;
+	height:200px;
+	border-color: fuchsia;
+	border-width: thin;
+	padding: 3px;
+	resize: none;
+   }
+   #taEnvironments{
+	width:900px;
+	height:200px;
+	border-color: aqua;
+	border-width: thin;
+	padding: 3px;
+	resize: none;
+   }
+   #taTrace{
+	width:900px;
+	height:200px;
+	border-color: lime;
+	border-width: thin;
+	padding: 3px;
+	resize: none;
+   }
+   .textAreaWithLines{
+      font-family:courier;      
+      border:1px solid #F00;
+      
+   }
+   .textAreaWithLines textarea,.textAreaWithLines div{
+      border:0px;
+      line-height:120%;
+      font-size:12px;
+   }
+   .lineObj{
+      color:red;
+   }

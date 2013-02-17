@@ -1,0 +1,1 @@
+Spaces within double quotes should generate an error. As well as newlines and tabs.  
