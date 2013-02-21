@@ -2,8 +2,8 @@
 /* February 2013 */
 /* lexer.js  */
 
-    const K_INT = "int_type";
-    const K_CHARTYPE = "char_type";
+    const K_INT = "int";
+    const K_CHARTYPE = "char";
     const K_DOLLAR = "end_of_file";
     const K_PRINT = "print";
     const K_RPAREN = "rparen";
@@ -27,7 +27,7 @@
     
     // Set up hash of all reserved words and which constant they go with
     var ReservedWords = { int: {lexeme: K_TYPE, value: K_INT},
-                          P: {lexeme: K_PRINT},
+                          P: {lexeme: K_PRINT, value: null},
                           char: {lexeme: K_TYPE, value: K_CHARTYPE},
                           };
                           
@@ -56,12 +56,15 @@ var Token = function(k, v, l, w, toknum){
 	
     }
     t.toString = function(){
+	if (t.value)
 	    return t.toknum + ": <" + t.kind + " : "+t.value+"> " + t.lineOutput() + t.warnOutput();
+	else
+	    return t.toknum + ": <" + t.kind + "> " + t.lineOutput() + t.warnOutput();
     }
     return t;
 }
 
-    function lex(idList)
+    function lex()
     {
 	Token.counter = null;
         var tokens = {};
@@ -72,6 +75,7 @@ var Token = function(k, v, l, w, toknum){
 	var inQuotes = false;
 	var quotesBegin = 0;
 	var foundEOF = false;
+	var tempString = '';
 	
 	errors.push(eErrorsFound);
 	
@@ -84,18 +88,40 @@ var Token = function(k, v, l, w, toknum){
 	
 	// Process each line:
 	for(var line=0; line<lines.length && foundEOF == false; line++) {
-	    tempString = '';
+	  //  tempString = '';
 	    // Add spaces around all the punctuation so I can tokenize the string
+	    // If we're within quotes, replace all spaces by the hex character 00
+	    // so we can remember where they were later.  
 	    for(var i=0; i<lines[line].length; i++){
+		// If the character is a quote, keep track of whether it's a begin-quote or an end-quote
+		if (/\"/.test(lines[line].charAt(i))) {
+		    if (inQuotes)
+			inQuotes = false
+		    else
+			inQuotes = true
+		}
+		// Replace spaces with hex A9 (copyright symbol) if they're within quotes
+		// Tried to use hex 00, but I guess Javascript strings must be null terminated
+		if (inQuotes){
+		    if (/\s/.test(lines[line].charAt(i))) {
+			tempString += "\xA9"
+		    }
+		}
 		if (/[\$\(\)\+\-\=\{\}\"]/.test(lines[line].charAt(i)))
 		    tempString += ' ' + lines[line].charAt(i) + ' ';
 		else
 		    tempString += lines[line].charAt(i);
 	    }
-     
+	    // If the end of the line was reached and quotes have not been terminated, an error should
+	    // be generated.  To avoid further errors, just skip lexing this line for now, append the
+	    // next line, then continue lexing.  
+	    if (inQuotes)
+		tempString += "\xAA"
+	    // alert(tempString)
+	    if (inQuotes == false) {
 	   // Tokenize the string. Return a list of anything surrounded by spaces
 	    words = tempString.match(/\S+/g);
-	    
+	   // alert(words)
 	    // If we found any tokens on this line, 
             if (words) {
 		//alert(words)
@@ -131,7 +157,23 @@ var Token = function(k, v, l, w, toknum){
 				    tokens.push(Token(K_CHAR, chars[l], line+1))
 				}
 				else {
-				    errors.push(chars[l] + " not allowed as part of a character string on line " + eval(line+1));
+				    // Remember we replaced spaces within quotes with hex A9 characters
+				    // so we could tokenize the input by whitespace? Now we have to
+				    // remember that they used to be spaces and err because in phase 1,
+				    // spaces aren't allowed in a character string.  Later, move the
+				    // test out of the error path and convert the characters back to
+				    // spaces.  
+				    if (/[\xA9]/.test(chars[l]))
+					errors.push("Spaces not allowed as part of a character string on line " + eval(line+1));
+				    // However, we're never gonna be allowed to add newlines (which were changed to
+				    // xAA characters) to character strings. This check can stay right where it is
+				    // and always generate a lex error.  
+				    else if (/[\xAA]/.test(chars[l]))
+					errors.push("Newline not allowed as part of a character string on line " + eval(line+1));
+				    // Else some other not-allowed character (capital letter, punctuation, etc)
+				    // was encountered
+				    else	
+					errors.push(chars[l] + " not allowed as part of a character string on line " + eval(line+1));
 				}
 			    }			    
 			break;
@@ -199,8 +241,6 @@ var Token = function(k, v, l, w, toknum){
 			// For round 1, all identifiers are 1 character in length.
 			// May need a better RE to identify a valid >1 length identifier for the final.  
 			    tokens.push(Token(K_ID, words[j], line+1))
-			// Add each identifier to the identifier list
-			    idList[words[j]] = line+1;
 			break;
 		    
 			// The next couple cases are for known errors with custom error messages
@@ -215,7 +255,9 @@ var Token = function(k, v, l, w, toknum){
 			break;
 		    } // End select
 		} // End for each word
+	    tempString = '';
             } // End if words ! null
+	    } // End if inQuotes == false
         } // End for each line'
 	
 	// If the end of input has been reached and a begin-quote was seen but an end-quote wasn't, give an error.

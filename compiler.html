@@ -3,20 +3,21 @@
    <head>
       <title>Anna's Compiler</title>
       <link rel="stylesheet" type="text/css" href="style.css" />
-      <script type="text/javascript" src="utils.js"></script>
       <script type="text/javascript" src="lexer.js"></script>      
       <script type="text/javascript" src="parser.js"></script>
       <script type="text/javascript" src="javascriptcandy.js"></script>
       
       <script type="text/javascript">
+         symbols = new Array();
          function init() {
            // Clear the message boxes.
            document.getElementById("taOutput").value = "";
            document.getElementById("ta1").value = "";
            document.getElementById("ta2").value = "";
            document.getElementById("ta3").value = "";
-           // Set the initial values for globals.
-           idList = new Array();
+           tokens = new Array()
+           symbols = new Array()
+           results = new Array()
          }
        
          function btnCompile_click() {        
@@ -26,7 +27,7 @@
            init();
            putMessage("taOutput","Compilation Started");
            // Grab the tokens from the lexer . . .
-           tokens = lex(idList);
+           tokens = lex();
            // If the lexer found errors, the first token will be constant eErrorsFound.
            // If this happens, indicate errors were found and print all errors.
            // Lex is allowed to find multiple errors.
@@ -42,11 +43,28 @@
            // then kick off parse.  
            else {
              putMessage("taOutput","Lex was successful!");
+             putMessage("taOutput"," Token stream:");
              for (var e=0; e<tokens.length; e++) {
-               putMessage("taOutput"," " + tokens[e]);
+               putMessage("taOutput","  " + tokens[e]);
             }
-            parse();
+            results = parse(symbols);
+          //  alert(symbols)
+            if (results[0] == eErrorsFound) {
+             putMessage("ta1","Parse errors found!");
+             }
+           // Otherwise lex found no errors.
+           // Indicate lex was successful and output all tokens,
+           // then kick off parse.  
+           else {
+             putMessage("ta1","Parse was successful!");
+             for (var s=0; s<symbols.length; s++) {
+               putMessage("ta2",symbols[s]);
+             }
+            }
+            for (var r=1; r<results.length; r++) {
+               putMessage("ta1"," " + results[r]);
            }
+         }
        }
            
        function putMessage(area,msg)
@@ -93,9 +111,9 @@ op            ::== + | -
             </td>
             <td width=70% align=left align=top>
                <br>
-               Lex/Parse Output<br><textarea id="taOutput"></textarea><br>
-               <br><textarea id="ta1"></textarea><br>
-               <br><textarea id="ta2"></textarea><br>
+               Lex Output<br><textarea id="taOutput"></textarea><br>
+               Parse Output<br><textarea id="ta1"></textarea><br>
+               Symbol Table<br><textarea id="ta2"></textarea><br>
                <br><textarea id="ta3"></textarea><br>
             </td>
          </tr>
