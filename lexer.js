@@ -57,6 +57,13 @@ var Token = function(k, v, l, w, toknum){
     }
     t.toString = function(){
 	if (t.value)
+	    return "<" + t.kind + " : "+t.value+"> "
+	else
+	    return "<" + t.kind + "> "
+    }
+    
+    t.toLongString = function(){
+	if (t.value)
 	    return t.toknum + ": <" + t.kind + " : "+t.value+"> " + t.lineOutput() + t.warnOutput();
 	else
 	    return t.toknum + ": <" + t.kind + "> " + t.lineOutput() + t.warnOutput();

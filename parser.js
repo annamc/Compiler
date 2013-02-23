@@ -2,10 +2,11 @@
 /* February 2013 */
 /* parser.js  */
 
+
 	const kConsume = 1;
 	const kCheck = 0;
 	const kFailure = 0;
-	const kSuccess = 0;
+	const kSuccess = 1;
 	
 	const kInt = "int"
 	const kChar = "char"
@@ -34,163 +35,169 @@ var Symbol = function(n, t, symnum){
     }
     return s;
 }
-    setSymbolCounter = new Symbol("fake name","fake type")
+	    setSymbolCounter = new Symbol("fake name","fake type")
 
          function parse(symbols) {
-	    say("Kicking off parse");
-	    results.push(null); // Initialize - first message on array will indicate if errors were found.
-	    parseProgram();
-	    if (numErrors > 0)
+	    tokenIndex = 0
+	    numErrors = 0
+	    results.push(null) // Initialize - first message on array will indicate if errors were found.
+	    parseProgram()
+	    if (numErrors > 0) {
 		results[0] = eErrorsFound
-	    return results;
+		if (numErrors == 1)
+		    say(numErrors + " parse error found.")
+		else
+		    say(numErrors + " parse errors found.")
+	    }
+	    return results
 	}
 	
 	function parseProgram() {
 	    say("Parsing Program");
 	    parseStatement();
-	    if (eatThisToken(K_DOLLAR) == kSuccess)
-		return kSuccess
-	    else
-		return kFailure
+	    match(K_DOLLAR)
+	    return
 	}
 	
 	function parseStatement() {
 	    say("Parsing Statement");
-	    thisToken = checkToken(kConsume)
+	    matchMany([K_PRINT,K_ID,K_TYPE,K_LBRACKET]);
 	    switch (true) {
 		case (thisToken.kind == K_PRINT): {
-		    parsePrintStatement();
-		    break;
+		    parsePrintStatement()
+		    break
 		}
 		case (thisToken.kind == K_ID): {
-		    parseAssignStatement();
-		    break;
+		    parseAssignStatement()
+		    break
 		}
 		case (thisToken.kind == K_TYPE): {
-		    parseVarDecl();
-		    break;
+		    parseVarDecl()
+		    break
 		}
 		case (thisToken.kind == K_LBRACKET): {
-		    parseStatementList();
-		    break;
+		    parseStatementList()
+		    break
 		}
 		default:
-		   return kFailure;
+		   ;
 	    }
-	    return kSuccess;
+	    return
 	}
 	
 	function parsePrintStatement() {
-	    say("Parsing Print Statement");
-	    
-	    if (eatThisToken(K_LPAREN) == kSuccess)
-		; // Keep going
-	    else
-		return kFailure
-	    
+	    say("Parsing Print Statement")
+	    match(K_LPAREN)
 	    parseExpr()
-	
-	    if (eatThisToken(K_RPAREN) == kSuccess)
-		return kSuccess
-	    else
-		return kFailure
+	    match(K_RPAREN)
+	    return
 	}
 	
 	function parseAssignStatement() {
-	    say("Parsing Assign Statement");
-	    if (eatThisToken(K_EQUAL) == kSuccess)
-		; // Keep going
-	    else
-		return kFailure
-	    
-	    thisToken = checkToken(kConsume)
+	    say("Parsing Assign Statement")
+	    match(K_EQUAL)
+	    //thisToken = checkToken(kConsume)
 	    parseExpr()
-	    
 	    return kSuccess
 	}
 	
 	function parseStatementList() {
-	    say("Parsing Statement List");
-	    if (checkToken(kCheck).kind != K_RBRACKET) {
-		parseStatement();
-		say ("Parsing another statement in the same list")
-		parseStatementList();
+	    say("Parsing Statement List")
+	    if (checkToken(kCheck).kind == K_DOLLAR) {
+		// reached end of file before closing brackets
+		say('End of file reached before statement list was closed')
+		numErrors = numErrors + 1
 	    }
-	    else {	
-	    if (eatThisToken(K_RBRACKET) == kSuccess)
-		return kSuccess;
-	    else
-		return kFailure
+	    else if (checkToken(kCheck).kind != K_RBRACKET) {
+		parseStatement()
+		parseStatementList()
 	    }
-	    return kSuccess;
+	    else 	
+		match(K_RBRACKET)
+	    return
 	}
 	
 	function parseExpr() {
-	    say("Parsing Expr");
-	    if (checkToken(kCheck).kind == K_DIGIT)
-		parseIntExpr()
-	    else if (checkToken(kCheck).kind == K_QUOTE)
-		parseCharExpr()
-	    else if (checkToken(kCheck).kind == K_ID)
-		return kSuccess;
-	    else return kFailure;
-	    return kSuccess;
+	    say("Parsing Expr")
+	    matchMany([K_DIGIT,K_QUOTE,K_ID])
+	    switch (true) {
+		case (thisToken.kind == K_DIGIT): {
+		    parseIntExpr()
+		    break
+		}
+		case (thisToken.kind == K_QUOTE): {
+		    parseCharExpr()
+		    break 
+		}
+		case (thisToken.kind == K_ID): {
+		    break
+		}
+		default:
+		    ;
+	    }
+	    return;
 	}
 	
 	function parseIntExpr() {
-	    say("Parsing Int Expr");
-	    if (eatThisToken(K_DIGIT) == kSuccess)
-		; // Keep going
-	    else
-		return kFailure
+	    say("Parsing Int Expr")
+	    //match(K_DIGIT)
 	    if (checkToken(kCheck).kind != K_OPERAND)
-		return kSuccess;
+		return
 	    else {
-		eatThisToken(K_OPERAND);
-		parseIntExpr();
+		match(K_OPERAND)
+		parseExpr()
 	    }
-	    return kSuccess;
+	    return
 	}
 	
 	function parseCharExpr() {
-	    say("Parsing Char Expr");
-	    if (eatThisToken(K_QUOTE) == kSuccess)
-		; // Keep going
-	    else
-		return kFailure
-	    parseCharList();
-	    if (eatThisToken(K_QUOTE) == kSuccess)
-		; // Keep going
-	    else
-		return kFailure
-	    return kSuccess;
+	    say("Parsing Char Expr")
+	    //match(K_QUOTE)
+	    parseCharList()
+	    match(K_QUOTE)
+	    return
 	}
 	
 	function parseCharList() {
-	    say("Parsing Char List");
+	    say("Parsing Char List")
 	    if (checkToken(kCheck).kind != K_QUOTE) {
-		if (eatThisToken(K_CHAR) == kSuccess)
-		    ; // Keep going
-		else
-		    return;
-		parseCharList();
+		match(K_CHAR)
+		parseCharList()
 	    }
 	    return;
 	}
 	
 	function parseVarDecl() {
-	    say("Parsing Var Decl");
-	    if (eatThisToken(K_ID) == kSuccess) {
+	    say("Parsing Var Decl")
+	    if (match(K_ID) == kSuccess) {
 		symbols[Symbol.counter] = new Symbol(thisToken.value, lastToken.value)
 	    }
-	    else
-		;
 	    return	
 	}
 	
-	function eatThisToken(tokenKind) {
-	    lastToken = thisToken;
-	    thisToken = checkToken(kConsume);
+	function matchMany(tokenKinds) {
+	    thisToken = checkToken(kConsume)
+	    output = "Checking for one of "
+	    for (var k=0; k<tokenKinds.length; k++) {
+		if (k < (tokenKinds.length)-1)
+		    output = output + tokenKinds[k] + ", "
+		else
+		    output = output + "or " + tokenKinds[k]
+	    }
+	    say(output)
+	    for (var k=0; k<tokenKinds.length; k++) {
+		if (thisToken.kind == tokenKinds[k]) {
+		    say("  Found " + thisToken.kind + "!")
+		return kSuccess
+		}
+	    }
+	    say("  Didnt find one of the expected tokens. Found " + thisToken.kind + " instead.")
+	    numErrors = numErrors + 1;
+	    return kFailure
+	}
+	
+	function match(tokenKind) {
+	    thisToken = checkToken(kConsume)
 	    say("Checking for " + tokenKind)
 	    if (thisToken.kind == tokenKind) {
 		say("  Found " + tokenKind + "!")
@@ -198,18 +205,21 @@ var Symbol = function(n, t, symnum){
 	    }
 	    else {
 		say("  Didnt find " + tokenKind + ". Found " + thisToken.kind + " instead.")
+		numErrors = numErrors + 1
 	    }
 	    return kFailure
 	}
 	
 	function checkToken(consume) {
-	    var indexToGet = tokenIndex;
+	    lastToken = thisToken
+	    var indexToGet = tokenIndex
 	    if (consume == kConsume) {
 		say("Consumed " + tokens[tokenIndex])
-		tokenIndex = tokenIndex + 1;
+		tokenIndex = tokenIndex + 1
 	    }
-	    else
-		say("Checked but did not consume "+tokens[tokenIndex])
+	    if (tokenIndex >= tokens.length) {
+		tokenIndex = tokenIndex - 1
+	    }
 	    return tokens[indexToGet];
 	}
 	

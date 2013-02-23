@@ -8,7 +8,6 @@
       <script type="text/javascript" src="javascriptcandy.js"></script>
       
       <script type="text/javascript">
-         symbols = new Array();
          function init() {
            // Clear the message boxes.
            document.getElementById("taOutput").value = "";
@@ -45,7 +44,7 @@
              putMessage("taOutput","Lex was successful!");
              putMessage("taOutput"," Token stream:");
              for (var e=0; e<tokens.length; e++) {
-               putMessage("taOutput","  " + tokens[e]);
+               putMessage("taOutput","  " + tokens[e].toLongString());
             }
             results = parse(symbols);
           //  alert(symbols)
