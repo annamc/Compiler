@@ -3,6 +3,7 @@
    <head>
       <title>Anna's Compiler</title>
       <link rel="stylesheet" type="text/css" href="style.css" />
+      <script type="text/javascript" src="constants.js"></script>
       <script type="text/javascript" src="lexer.js"></script>      
       <script type="text/javascript" src="parser.js"></script>
       <script type="text/javascript" src="javascriptcandy.js"></script>
@@ -14,6 +15,7 @@
            document.getElementById("ta1").value = "";
            document.getElementById("ta2").value = "";
            document.getElementById("ta3").value = "";
+           // (Re)Initialize some stuff.  
            tokens = new Array()
            symbols = new Array()
            results = new Array()
@@ -47,7 +49,6 @@
                putMessage("taOutput","  " + tokens[e].toLongString());
             }
             results = parse(symbols);
-          //  alert(symbols)
             if (results[0] == eErrorsFound) {
              putMessage("ta1","Parse errors found!");
              }

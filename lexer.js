@@ -1,29 +1,6 @@
 /* Anna Clayton */
 /* February 2013 */
 /* lexer.js  */
-
-    const K_INT = "int";
-    const K_CHARTYPE = "char";
-    const K_DOLLAR = "end_of_file";
-    const K_PRINT = "print";
-    const K_RPAREN = "rparen";
-    const K_LPAREN = "lparen";
-    const K_RBRACKET = "rbracket";
-    const K_LBRACKET = "lbracket";
-    const K_PLUS = "plus";
-    const K_MINUS = "minus";
-    const K_QUOTE = "quote";
-    const K_STRING = "string";
-    const K_EQUAL = "assign";
-    const K_OPERAND = "operand";
-    const K_DIGIT = "digit";
-    const K_CHAR = "char";
-    const K_TYPE = "type";
-    const K_ID = "identifier";
-    
-    const eErrorsFound = "Errors were found";
-    const wMoreInput = "Input after EOF ignored";
-    const wNoEOF = "Missing EOF meta-symbol was inserted";
     
     // Set up hash of all reserved words and which constant they go with
     var ReservedWords = { int: {lexeme: K_TYPE, value: K_INT},
