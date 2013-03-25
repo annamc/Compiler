@@ -13,7 +13,7 @@
     var numErrors = 0;
 	
     var results = new Array();
-    var symbols = new Array();
+    var symbolTree = new Tree();
 	
     /* Symbol. So far a symbol has a name, a type, and a number.
      * Later it'll have more fun stuff like scope and usage */
@@ -27,10 +27,11 @@
 	var s = {name: n, type: t, symnum: Symbol.counter};
     
 	s.toString = function(){
-	    return s.symnum + ": <" + s.name + " : "+s.type+"> ";
+	    return "<" + s.name + " : "+s.type+">";
 	}
 	return s;
     }
+
 
     /* Create a fake Symbol in order to define Symbol.counter */
     setSymbolCounter = new Symbol("fake name","fake type")
@@ -39,7 +40,11 @@
 	 * Initializes variables, then calls parseProgram to kick off the parser.
 	 * Puts an indication of how many errors were found in the results, then
 	 * returns results to the called (compiler.html) */
-         function parse(symbols) {
+         function parse(symbolTree) {
+	    
+	    /* Add a (root) node to the symbol table tree, and make it the current node */
+	    //symbolTree.addNode(new Array(), true);
+
 	    tokenIndex = 0
 	    numErrors = 0
 	    /* 2nd and subsequent times this proc is called, want to reset the symbol table counter */
@@ -70,7 +75,7 @@
 	 * parseProgram unconditionally calls parseStatement, then matches on
 	 * the K_DOLLAR EOF indicator token. */
 	function parseProgram() {
-	    say("Parsing Program");
+	    //say("Parsing Program");
 	    parseStatement();
 	    match(K_DOLLAR)
 	    return
@@ -93,7 +98,7 @@
 	 *  The functions called by parseStatement are aware that the K_PRINT, K_ID,
 	 *  K_TYPE, OR K_LBRACKET token have already been consumed. */
 	function parseStatement() {
-	    say("Parsing Statement");
+	    //say("Parsing Statement");
 	    matchMany([K_PRINT,K_ID,K_TYPE,K_LBRACKET]);
 	    switch (true) {
 		case (thisToken.kind == K_PRINT): {
@@ -109,6 +114,8 @@
 		    break
 		}
 		case (thisToken.kind == K_LBRACKET): {
+		    /* If a statement list is beginning, create a new node on the syntax tree and make it the current */
+		    symbolTree.addNode(new Array(), true);
 		    parseStatementList()
 		    break
 		}
@@ -123,7 +130,7 @@
 	 * parsePrintStatement is called by parseStatement when a Print operation
 	 * has been encountered (the P has been consumed). */
 	function parsePrintStatement() {
-	    say("Parsing Print Statement")
+	    //say("Parsing Print Statement")
 	    match(K_LPAREN)
 	    parseExpr()
 	    match(K_RPAREN)
@@ -135,10 +142,31 @@
 	 * parseAssignStatement is called by parseStatement when an identifier
 	 * has been encountered (the identifier has been consumed). */ 
 	function parseAssignStatement() {
-	    say("Parsing Assign Statement")
+	    //say("Parsing Assign Statement")
+	    /* Make sure the variable being assigned is in the current scope */
+	    
+	    if (findVariableInScope(thisToken.value) == null)
+		error("Variable "+ thisToken.value + " assigned but not defined")
 	    match(K_EQUAL)
 	    parseExpr()
 	    return
+	}
+	
+	function findVariableInScope(variable) {
+	    thisScope = symbolTree.cur;
+	    while (thisScope.name !== undefined)
+	    {
+	    if (thisScope.name !== undefined) {	
+    	    for (var i = 0; i < thisScope.name.length; i++)
+                {
+		    if (symbolTree.cur.name[i].name == variable) {
+			return symbolTree.cur.name[i].type
+		    }
+                }
+	    }
+		thisScope = symbolTree.cur.parent
+	    }
+	    return null
 	}
 	
 	/* Parse statement list
@@ -153,18 +181,21 @@
 	 *  see if another statement is there or if the end of statement list/EOF
 	 *  is found. */
 	function parseStatementList() {
-	    say("Parsing Statement List")
+	    //say("Parsing Statement List")
 	    if (checkToken(kCheck).kind == K_DOLLAR) {
 		// reached end of file before closing brackets
-		say('End of file reached before statement list was closed!')
-		numErrors = numErrors + 1
+		error('End of file reached before statement list was closed!')
+		//numErrors = numErrors + 1
 	    }
 	    else if (checkToken(kCheck).kind != K_RBRACKET) {
 		parseStatement()
 		parseStatementList()
 	    }
-	    else 	
+	    else {	
 		match(K_RBRACKET)
+		/* If a statement list has been terminated, go up to the parent node in the symbol table */
+		symbolTree.goUp()
+	    }
 	    return
 	}
 	
@@ -178,7 +209,7 @@
 	 * or an identifier.  If identifier, no function is called since I
 	 * can just match on K_ID from here. */
 	function parseExpr() {
-	    say("Parsing Expr")
+	    //say("Parsing Expr")
 	    matchMany([K_DIGIT,K_QUOTE,K_ID])
 	    switch (true) {
 		case (thisToken.kind == K_DIGIT): {
@@ -190,6 +221,8 @@
 		    break 
 		}
 		case (thisToken.kind == K_ID): {
+		    if (findVariableInScope(thisToken.value) == null)
+			error("Variable "+ thisToken.value + " referenced but not defined")
 		    break
 		}
 		default:
@@ -204,7 +237,7 @@
 	 * parseIntExpr is called by parseExpr, which has already
 	 * matched on and consumed the digit. */
 	function parseIntExpr() {
-	    say("Parsing Int Expr")
+	    //say("Parsing Int Expr")
 	    if (checkToken(kCheck).kind != K_OPERAND)
 		return
 	    else {
@@ -219,7 +252,7 @@
 	 * parseCharExpr is called by parseExpr, which has already
 	 * matched on and consumed the beginning quote. */
 	function parseCharExpr() {
-	    say("Parsing Char Expr")
+	    //say("Parsing Char Expr")
 	    parseCharList()
 	    match(K_QUOTE)
 	    return
@@ -234,7 +267,7 @@
 	 * are valid Chars, but if one slipped through it would be caught because
 	 * it wouldn't match K_CHAR. */
 	function parseCharList() {
-	    say("Parsing Char List")
+	    //say("Parsing Char List")
 	    if (checkToken(kCheck).kind != K_QUOTE) {
 		match(K_CHAR)
 		parseCharList()
@@ -252,12 +285,31 @@
 	 * and lastToken.value is the type of the variable (because the previous lexeme
 	 * that was seen by parseStatement was the type) */
 	function parseVarDecl() {
-	    say("Parsing Var Decl")
+	    //say("Parsing Var Decl")
 	    if (match(K_ID) == kSuccess) {
-		symbols[Symbol.counter] = new Symbol(thisToken.value, lastToken.value)
+		/* If the current node of symbol tree is undefined, we must be parsing a verrrry simple testcase
+		 * in which there are no statement lists.  Create a node (the only one) in the symbol tree to store
+		 * this (only) symbol */
+		if (symbolTree.root == null)
+		    symbolTree.addNode(new Array(), true);
+		/* Check to see if the current scope already has the variable defined */
+		var foundRedefine = false
+    		for (var i = 0; i < symbolTree.cur.name.length && foundRedefine == false; i++)
+                    {
+			if (symbolTree.cur.name[i].name == thisToken.value) {
+			    error("  Found variable redeclaration for variable " + thisToken.value)
+			    //numErrors = numErrors + 1
+			    foundRedefine = true
+			}
+                    }
+		if (foundRedefine == false)
+		    symbolTree.cur.name.push(new Symbol(thisToken.value, lastToken.value))
+		else
+		    symbolTree.cur.name[i-1].type = lastToken.value
 	    }
 	    return	
 	}
+
 	
 	/* matchMany is a function to match one of an array of token kinds to the next token and
 	 * consume the token. Returns kSuccess if an expected token was found and kFailure if something
@@ -271,15 +323,15 @@
 		else
 		    output = output + "or " + tokenKinds[k]
 	    }
-	    say(output)
+	    //say(output)
 	    for (var k=0; k<tokenKinds.length; k++) {
 		if (thisToken.kind == tokenKinds[k]) {
-		    say("  Found " + thisToken.kind + "!")
+		    //say("  Found " + thisToken.kind + "!")
 		return kSuccess
 		}
 	    }
-	    say("  Didnt find one of the expected tokens. Found " + thisToken.kind + " instead.")
-	    numErrors = numErrors + 1;
+	    error("  Didnt find one of the expected tokens. Found " + thisToken.kind + " instead.")
+	    //numErrors = numErrors + 1;
 	    return kFailure
 	}
 	
@@ -287,14 +339,14 @@
 	 * Returns kSuccess if the expected token was found and kFailure if something else was found. */
 	function match(tokenKind) {
 	    thisToken = checkToken(kConsume)
-	    say("Checking for " + tokenKind)
+	    //say("Checking for " + tokenKind)
 	    if (thisToken.kind == tokenKind) {
-		say("  Found " + tokenKind + "!")
+		//say("  Found " + tokenKind + "!")
 		return kSuccess
 	    }
 	    else {
-		say("  Didnt find " + tokenKind + ". Found " + thisToken.kind + " instead.")
-		numErrors = numErrors + 1
+		error("  Didnt find " + tokenKind + ". Found " + thisToken.kind + " instead.")
+		//numErrors = numErrors + 1
 	    }
 	    return kFailure
 	}
@@ -308,7 +360,7 @@
 	    lastToken = thisToken
 	    var indexToGet = tokenIndex
 	    if (consume == kConsume) {
-		say("Consumed " + tokens[tokenIndex])
+		//say("Consumed " + tokens[tokenIndex])
 		tokenIndex = tokenIndex + 1
 	    }
 	    if (tokenIndex >= tokens.length) {
@@ -324,4 +376,9 @@
 	 * of lazyness but also to make it easy to change in the future if needed. */
 	function say(msg) {
 	    results.push(msg)
+	}
+	
+	function error(msg) {
+	    say(msg)
+	    numErrors = numErrors + 1
 	}

@@ -4,8 +4,10 @@
     
     // Set up hash of all reserved words and which constant they go with
     var ReservedWords = { int: {lexeme: K_TYPE, value: K_INT},
-                          P: {lexeme: K_PRINT, value: null},
-                          char: {lexeme: K_TYPE, value: K_CHARTYPE},
+                          P: {lexeme: K_PRINT, value: null, warning: wP},
+			  print: {lexeme: K_PRINT, value: null},
+                          char: {lexeme: K_TYPE, value: K_STRING, warning: wChar},
+			  string: {lexeme: K_TYPE, value: K_STRING}
                           };
                           
 
@@ -137,22 +139,20 @@ var Token = function(k, v, l, w, toknum){
 			// Note that spaces within quotes have been stripped. Need to think of a way to fix this for round 2.
 			    chars = words[j].split('');
 			    for (var l=0; l<chars.length; l++) {
+				// If the character is a lowercase letter (allowed), then push a K_CHAR token with the value matching the character to the token stream
 				if (/[a-z]/.test(chars[l])) {
 				    tokens.push(Token(K_CHAR, chars[l], line+1))
 				}
+				// Remember we replaced spaces within quotes with hex A9 characters
+				// so we could tokenize the input by whitespace? Now we have to
+				// remember that they used to be spaces and convert them back to spaces
+				// (now that spaces are allowed in character strings)
+				else if (/[\xA9]/.test(chars[l]))
+				    tokens.push(Token(K_CHAR, " ", line+1))
 				else {
-				    // Remember we replaced spaces within quotes with hex A9 characters
-				    // so we could tokenize the input by whitespace? Now we have to
-				    // remember that they used to be spaces and err because in phase 1,
-				    // spaces aren't allowed in a character string.  Later, move the
-				    // test out of the error path and convert the characters back to
-				    // spaces.  
-				    if (/[\xA9]/.test(chars[l]))
-					errors.push("Spaces not allowed as part of a character string on line " + eval(line+1));
 				    // However, we're never gonna be allowed to add newlines (which were changed to
-				    // xAA characters) to character strings. This check can stay right where it is
-				    // and always generate a lex error.  
-				    else if (/[\xAA]/.test(chars[l]))
+				    // xAA characters) to character strings. Generate a lex error
+				    if (/[\xAA]/.test(chars[l]))
 					errors.push("Newline not allowed as part of a character string on line " + eval(line+1));
 				    // Else some other not-allowed character (capital letter, punctuation, etc)
 				    // was encountered
@@ -170,7 +170,8 @@ var Token = function(k, v, l, w, toknum){
 		    
 			// If the next token is a recognized reserved word
 			case (words[j] in ReservedWords):
-			    tokens.push(Token(ReservedWords[eval("\"" + words[j] + "\"")].lexeme, ReservedWords[eval("\"" + words[j] + "\"")].value, line+1))
+			    tokens.push(Token(ReservedWords[eval("\"" + words[j] + "\"")].lexeme, ReservedWords[eval("\"" + words[j] + "\"")].value,
+					      line+1, ReservedWords[eval("\"" + words[j] + "\"")].warning))			    
 			break;
 		    
 			// If the next token is a plus sign

@@ -4,6 +4,7 @@
       <title>Anna's Compiler</title>
       <link rel="stylesheet" type="text/css" href="style.css" />
       <script type="text/javascript" src="constants.js"></script>
+      <script type="text/javascript" src="tree.js"></script>
       <script type="text/javascript" src="lexer.js"></script>      
       <script type="text/javascript" src="parser.js"></script>
       <script type="text/javascript" src="javascriptcandy.js"></script>
@@ -19,6 +20,7 @@
            tokens = new Array()
            symbols = new Array()
            results = new Array()
+           symbolTree = new Tree()
          }
        
          function btnCompile_click() {        
@@ -48,7 +50,7 @@
              for (var e=0; e<tokens.length; e++) {
                putMessage("taOutput","  " + tokens[e].toLongString());
             }
-            results = parse(symbols);
+            results = parse(symbolTree);
             if (results[0] == eErrorsFound) {
              putMessage("ta1","Parse errors found!");
              }
@@ -57,10 +59,9 @@
            // then kick off parse.  
            else {
              putMessage("ta1","Parse was successful!");
-             for (var s=0; s<symbols.length; s++) {
-               putMessage("ta2",symbols[s]);
-             }
             }
+            
+            putMessage("ta2",symbolTree.toString());
             for (var r=1; r<results.length; r++) {
                putMessage("ta1"," " + results[r]);
            }
@@ -87,24 +88,26 @@
                <h5>
                <pre>
 Program       ::== Statement $
-Statement     ::== P ( Expr )
-	      ::== Id = Expr
-	      ::== VarDecl
-	      ::== { StatementList }
+Statement     ::== print ( Expr )
+              ::== Id = Expr
+              ::== VarDecl
+              ::== { StatementList }
 StatementList ::== Statement StatementList
-	      ::== <i>epsilon</i>
+              ::== <i>epsilon</i>
 Expr          ::== IntExpr
-	      ::== CharExpr
-	      ::== Id
+              ::== StringExpr
+              ::== Id
 IntExpr       ::== digit op Expr
-	      ::== digit
-CharExpr      ::== " CharList "
+              ::== digit
+StringExpr    ::== " CharList "
 CharList      ::== Char CharList
-	      ::== <i>epsilon</i>
+              ::== Space CharList
+              ::== <i>epsilon</i>
 VarDecl       ::== Type Id
-Type          ::== int | char
+Type          ::== int | string
 Id            ::== Char
 Char          ::== a | b | c ... z
+Space         ::== <i>the space character</i>
 digit         ::== 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 0
 op            ::== + | -
                </pre>	

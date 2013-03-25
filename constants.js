@@ -30,6 +30,9 @@
     const eErrorsFound = "Errors were found";
     const wMoreInput = "Input after EOF ignored";
     const wNoEOF = "Missing EOF meta-symbol was inserted";
+    const wP = "Deprecated keyword \"P\". Use \"print\" instead";
+    const wChar = "Deprecated keyword \"char\". Use \"string\" instead";
+
     
     /* kConsume and kCheck are the values that can be passed to function checkToken
      * in parser.js to indicate whether the tokenIndex should be incremented to point
