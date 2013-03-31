@@ -11,24 +11,48 @@
 	overflow: auto;
 	resize: none;
    }
-   #taOutput{
-	width:600px;
+   #taLexResults{
+	width:400px;
 	height:150px;
 	border-color: blue;
 	border-width: thin;
 	padding: 3px;
 	resize: none;
    }
-   #ta1{
-	width:600px;
+      #taLexOutput{
+	width:400px;
+	height:150px;
+	border-color: blue;
+	border-width: thin;
+	padding: 3px;
+	resize: none;
+   }
+   #taParseResults{
+	width:400px;
 	height:150px;
 	border-color: fuchsia;
 	border-width: thin;
 	padding: 3px;
 	resize: none;
    }
-   #ta2{
-	width:600px;
+   #taParseCST{
+	width:400px;
+	height:150px;
+	border-color: fuchsia;
+	border-width: thin;
+	padding: 3px;
+	resize: none;
+   }
+   #taParseAST{
+	width:400px;
+	height:150px;
+	border-color: aqua;
+	border-width: thin;
+	padding: 3px;
+	resize: none;
+   }
+      #taParseScope{
+	width:400px;
 	height:150px;
 	border-color: aqua;
 	border-width: thin;

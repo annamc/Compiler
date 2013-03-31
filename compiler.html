@@ -12,15 +12,19 @@
       <script type="text/javascript">
          function init() {
            // Clear the message boxes.
-           document.getElementById("taOutput").value = "";
-           document.getElementById("ta1").value = "";
-           document.getElementById("ta2").value = "";
+           document.getElementById("taLexResults").value = "";
+           document.getElementById("taLexOutput").value = "";
+           document.getElementById("taParseResults").value = "";
+           document.getElementById("taParseCST").value = "";
+           document.getElementById("taParseAST").value = "";
+           document.getElementById("taParseScope").value = "";
            document.getElementById("ta3").value = "";
            // (Re)Initialize some stuff.  
            tokens = new Array()
            symbols = new Array()
            results = new Array()
            symbolTree = new Tree()
+           CST = new Tree()
          }
        
          function btnCompile_click() {        
@@ -28,7 +32,6 @@
            // "compile" button.
            // Note the <input> element's event handler: onclick="btnCompile_click();
            init();
-           putMessage("taOutput","Compilation Started");
            // Grab the tokens from the lexer . . .
            tokens = lex();
            // If the lexer found errors, the first token will be constant eErrorsFound.
@@ -36,35 +39,36 @@
            // Lex is allowed to find multiple errors.
            // If lex finds errors, don't parse
            if (tokens[0] == eErrorsFound) {
-             putMessage("taOutput","Lex errors found!");
+             putMessage("taLexResults","Lex errors found!");
              for (var e=1; e<tokens.length; e++) {
-               putMessage("taOutput"," " + tokens[e]);
+               putMessage("taLexOutput"," " + tokens[e]);
              }
            }
            // Otherwise lex found no errors.
            // Indicate lex was successful and output all tokens,
            // then kick off parse.  
            else {
-             putMessage("taOutput","Lex was successful!");
-             putMessage("taOutput"," Token stream:");
+             putMessage("taLexResults","Lex was successful!");
+             putMessage("taLexOutput"," Token stream:");
              for (var e=0; e<tokens.length; e++) {
-               putMessage("taOutput","  " + tokens[e].toLongString());
+               putMessage("taLexOutput","  " + tokens[e].toLongString());
             }
-            results = parse(symbolTree);
-            if (results[0] == eErrorsFound) {
-             putMessage("ta1","Parse errors found!");
+            parseOutput = parse(symbolTree);
+            if (parseOutput.results[0] == eErrorsFound) {
+             putMessage("taParseResults","Parse errors found!");
              }
            // Otherwise lex found no errors.
            // Indicate lex was successful and output all tokens,
            // then kick off parse.  
            else {
-             putMessage("ta1","Parse was successful!");
+             putMessage("taParseResults","Parse was successful!");
             }
             
-            putMessage("ta2",symbolTree.toString());
-            for (var r=1; r<results.length; r++) {
-               putMessage("ta1"," " + results[r]);
+            for (var r=1; r<parseOutput.results.length; r++) {
+               putMessage("taParseResults"," " + parseOutput.results[r]);
            }
+            putMessage("taParseCST",""+parseOutput.CST.toString());
+            putMessage("taParseAST",""+parseOutput.AST.toString());
          }
        }
            
@@ -112,12 +116,70 @@ digit         ::== 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 0
 op            ::== + | -
                </pre>	
             </td>
-            <td width=70% align=left align=top>
-               <br>
-               Lex Output<br><textarea id="taOutput"></textarea><br>
-               Parse Output<br><textarea id="ta1"></textarea><br>
-               Symbol Table<br><textarea id="ta2"></textarea><br>
-               <br><textarea id="ta3"></textarea><br>
+            <td width=70% halign=left valign=top>
+                  <table align=top border=0>
+                     <tr>
+                        <td>
+                           Lex Results
+                        </td>
+                        <td>
+                           Lex Output
+                        </td>
+                     </tr>
+                     <tr>
+                        <td width=450px>
+                           <textarea id="taLexResults"></textarea><br>
+                        </td>
+                        <td width=450px>
+                           <textarea id="taLexOutput"></textarea><br>
+                        </td>
+                     </tr>
+                     
+                     <tr>
+                        <td>
+                           Parse Results
+                        </td>
+                        <td>
+                           Concrete Syntax Tree
+                        </td>
+                     </tr>
+                     <tr>
+                        <td>
+                           <textarea id="taParseResults"></textarea><br>
+                        </td>
+                        <td>
+                           <textarea id="taParseCST"></textarea><br>
+                        </td>
+                     </tr>
+                     <tr>
+                        <td>
+                           Abstract Syntax Tree
+                        </td>
+                        <td>
+                           Symbol Table
+                        </td>
+                     </tr>
+                                          
+                     <tr>
+                        <td>
+                           <textarea id="taParseAST"></textarea><br>
+                        </td>
+                        <td>
+                           <textarea id="taParseScope"></textarea><br>
+                        </td>
+                     </tr>
+                     
+                     <tr>
+                        <td colspan=2>
+                           
+                        </td>
+                     </tr>                       
+                     <tr>
+                        <td colspan=2>
+                           <textarea id="ta3"></textarea><br>
+                        </td>
+                     </tr>
+                  </table>
             </td>
          </tr>
       </table>

@@ -5,10 +5,53 @@
 // work by Michael Ardizzone and Tim Smith.
 //-----------------------------------------
 
+    // What type of node is this? Applicable to CSTs only.  
+    const K_BRANCH = "branch"
+    const K_LEAF = "leaf"
+    
+    // What type of tree is this?
+    const K_SCOPE = "scope"
+    const K_CST = "CST"
+    
+    // What type of branch is this? Applicable to CSTs only.
+    const B_PROGRAM = "program"
+    const B_STATEMENT = "statement"
+    const B_PRINT = "print"
+    const B_ASSIGN = "assign"
+    const B_STATEMENTLIST = "statement list"
+    const B_EXPR = "expr"
+    const B_INTEXPR = "int expr"
+    const B_CHAREXPR = "char expr"
+    const B_IDEXPR = "ident expr"
+    const B_CHARLIST = "charlist"
+    const B_DECLARE = "declare"
+    const B_DIGIT = "digit"
+    const B_OPERAND = "operand"
+    
+    // What type of leaf is this?
+    const L_ID = "id"
+    const L_CHARLIST = "charlist"
+    const L_DIGIT = "digit"
+    const L_OPERAND = "operand"
+    const L_TYPE = "type"
+    
+    var Leaf = function(k, v){
+
+    var l = {kind: k, value: v};
+    
+    l.toString = function(){
+	return "" + l.kind + "," + l.value + ""
+    }
+    
+    return l;
+}
+
 function Tree() {
     // ----------
     // Attributes
     // ----------
+    
+    var AST
     
     this.root = null;  // Note the NULL root node of this tree.
     this.cur = {};     // Note the EMPTY current node of the tree we're building.
@@ -19,7 +62,7 @@ function Tree() {
     // -- ------- --
 
 
-    this.addNode = function(name, makeCurrent) {
+    this.addNode = function(name, kind) {
         // Construct the node object.
         var node = { name: name,
                      children: [],
@@ -37,12 +80,12 @@ function Tree() {
             // We are the children.
             // Make our parent the CURrent node...
             node.parent = this.cur;
-            // ... and add ourselves (via the unfrotunately-named
+            // ... and add ourselves (via the unfortunately-named
             // "push" function) to the children array of the current node.
             this.cur.children.push(node);
         }
         // If we are an interior/branch node, then...
-        if (makeCurrent == true)
+        if (kind == K_BRANCH)
         {
             // ... update the CURrent node pointer to ourselves.
             this.cur = node;
@@ -64,7 +107,45 @@ function Tree() {
     };
     
     // Return a string representation of the tree.
-    this.toString = function() {
+    //this.toString = function() {
+    //    // Initialize the result string.
+    //    var traversalResult = "";
+    //
+    //    // Recursive function to handle the expansion of the nodes.
+    //    function expand(node, depth)
+    //    {
+    //        // Space out based on the current depth so
+    //        // this looks at least a little tree-like.
+    //        for (var i = 0; i < depth; i++)
+    //        {
+    //            traversalResult += "   ";
+    //        }
+    //
+    //        // If there are no children (i.e., leaf nodes)...
+    //        if (!node.children || node.children.length === 0)
+    //        {
+    //            // ... note the leaf node.
+    //            traversalResult += "+ " + node.name.toString();
+    //            traversalResult += "\n";
+    //        }
+    //        else
+    //        {
+    //            // There are children, so note these interior/branch nodes and ...
+    //            traversalResult += "+ " + node.name.toString() + "\n";
+    //            // .. recursively expand them.
+    //            for (var i = 0; i < node.children.length; i++)
+    //            {
+    //                expand(node.children[i], depth + 1);
+    //            }
+    //        }
+    //    }
+    //    // Make the initial call to expand from the root.
+    //    expand(this.root, 0);
+    //    // Return the result.
+    //    return traversalResult;
+    //};
+    
+        this.toString = function() {
         // Initialize the result string.
         var traversalResult = "";
 
@@ -75,20 +156,20 @@ function Tree() {
             // this looks at least a little tree-like.
             for (var i = 0; i < depth; i++)
             {
-                traversalResult += "   ";
+                traversalResult += "-";
             }
 
             // If there are no children (i.e., leaf nodes)...
             if (!node.children || node.children.length === 0)
             {
                 // ... note the leaf node.
-                traversalResult += "+ " + node.name.toString();
+                traversalResult += "[" + node.name + "]";
                 traversalResult += "\n";
             }
             else
             {
                 // There are children, so note these interior/branch nodes and ...
-                traversalResult += "+ " + node.name.toString() + "\n";
+                traversalResult += "<" + node.name + "> \n";
                 // .. recursively expand them.
                 for (var i = 0; i < node.children.length; i++)
                 {
@@ -101,4 +182,21 @@ function Tree() {
         // Return the result.
         return traversalResult;
     };
+    
+    this.findVariableInScope = function(variable) {
+	    thisScope = this.cur;
+	    while (thisScope.name !== undefined)
+	    {
+	    if (thisScope.name !== undefined) {	
+    	    for (var i = 0; i < thisScope.name.length; i++)
+                {
+		    if (this.cur.name[i].name == variable) {
+			return this.cur.name[i].type
+		    }
+                }
+	    }
+		thisScope = this.cur.parent
+	    }
+	    return null
+	}
 }

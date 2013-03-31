@@ -14,6 +14,10 @@
 	
     var results = new Array();
     var symbolTree = new Tree();
+    var CST = new Tree();
+    var AST = new Tree();
+    
+    charlist = "";
 	
     /* Symbol. So far a symbol has a name, a type, and a number.
      * Later it'll have more fun stuff like scope and usage */
@@ -40,7 +44,7 @@
 	 * Initializes variables, then calls parseProgram to kick off the parser.
 	 * Puts an indication of how many errors were found in the results, then
 	 * returns results to the called (compiler.html) */
-         function parse(symbolTree) {
+         function parse() {
 	    
 	    /* Add a (root) node to the symbol table tree, and make it the current node */
 	    //symbolTree.addNode(new Array(), true);
@@ -67,7 +71,8 @@
 		else
 		    say(numErrors + " parse errors found.")
 	    }
-	    return results
+	    AST = CSTtoAST(CST)
+	    return { results : results, CST : CST , AST: AST}
 	}
 	
 	/* Parse program
@@ -76,6 +81,7 @@
 	 * the K_DOLLAR EOF indicator token. */
 	function parseProgram() {
 	    //say("Parsing Program");
+	    CST.addNode(B_PROGRAM,K_BRANCH)
 	    parseStatement();
 	    match(K_DOLLAR)
 	    return
@@ -99,6 +105,7 @@
 	 *  K_TYPE, OR K_LBRACKET token have already been consumed. */
 	function parseStatement() {
 	    //say("Parsing Statement");
+	    CST.addNode(B_STATEMENT,K_BRANCH)
 	    matchMany([K_PRINT,K_ID,K_TYPE,K_LBRACKET]);
 	    switch (true) {
 		case (thisToken.kind == K_PRINT): {
@@ -115,13 +122,15 @@
 		}
 		case (thisToken.kind == K_LBRACKET): {
 		    /* If a statement list is beginning, create a new node on the syntax tree and make it the current */
-		    symbolTree.addNode(new Array(), true);
+		    //symbolTree.addNode(new Array(), true);
+		    CST.addNode(B_STATEMENTLIST,K_BRANCH)
 		    parseStatementList()
 		    break
 		}
 		default:
 		   ;
 	    }
+	    CST.goUp()
 	    return
 	}
 	
@@ -131,9 +140,11 @@
 	 * has been encountered (the P has been consumed). */
 	function parsePrintStatement() {
 	    //say("Parsing Print Statement")
+	    CST.addNode(B_PRINT,K_BRANCH)
 	    match(K_LPAREN)
 	    parseExpr()
 	    match(K_RPAREN)
+	    CST.goUp()
 	    return
 	}
 	
@@ -143,30 +154,16 @@
 	 * has been encountered (the identifier has been consumed). */ 
 	function parseAssignStatement() {
 	    //say("Parsing Assign Statement")
+	    CST.addNode(B_ASSIGN,K_BRANCH)
 	    /* Make sure the variable being assigned is in the current scope */
 	    
-	    if (findVariableInScope(thisToken.value) == null)
-		error("Variable "+ thisToken.value + " assigned but not defined")
+	//    if (findVariableInScope(thisToken.value) == null)
+	//	error("Variable "+ thisToken.value + " assigned but not defined")
+	    CST.addNode(new Leaf(L_ID,thisToken.value),K_LEAF)
 	    match(K_EQUAL)
 	    parseExpr()
+	    CST.goUp()
 	    return
-	}
-	
-	function findVariableInScope(variable) {
-	    thisScope = symbolTree.cur;
-	    while (thisScope.name !== undefined)
-	    {
-	    if (thisScope.name !== undefined) {	
-    	    for (var i = 0; i < thisScope.name.length; i++)
-                {
-		    if (symbolTree.cur.name[i].name == variable) {
-			return symbolTree.cur.name[i].type
-		    }
-                }
-	    }
-		thisScope = symbolTree.cur.parent
-	    }
-	    return null
 	}
 	
 	/* Parse statement list
@@ -185,7 +182,6 @@
 	    if (checkToken(kCheck).kind == K_DOLLAR) {
 		// reached end of file before closing brackets
 		error('End of file reached before statement list was closed!')
-		//numErrors = numErrors + 1
 	    }
 	    else if (checkToken(kCheck).kind != K_RBRACKET) {
 		parseStatement()
@@ -194,7 +190,8 @@
 	    else {	
 		match(K_RBRACKET)
 		/* If a statement list has been terminated, go up to the parent node in the symbol table */
-		symbolTree.goUp()
+		//symbolTree.goUp()
+		CST.goUp()
 	    }
 	    return
 	}
@@ -210,6 +207,7 @@
 	 * can just match on K_ID from here. */
 	function parseExpr() {
 	    //say("Parsing Expr")
+	    CST.addNode(B_EXPR,K_BRANCH)
 	    matchMany([K_DIGIT,K_QUOTE,K_ID])
 	    switch (true) {
 		case (thisToken.kind == K_DIGIT): {
@@ -221,13 +219,17 @@
 		    break 
 		}
 		case (thisToken.kind == K_ID): {
-		    if (findVariableInScope(thisToken.value) == null)
-			error("Variable "+ thisToken.value + " referenced but not defined")
+		//    if (findVariableInScope(thisToken.value) == null)
+		//	error("Variable "+ thisToken.value + " referenced but not defined")
+		    CST.addNode(B_IDEXPR,K_BRANCH)
+		    CST.addNode(new Leaf(L_ID,thisToken.value),K_LEAF)
+		    CST.goUp()
 		    break
 		}
 		default:
 		    ;
 	    }
+	    CST.goUp()
 	    return;
 	}
 	
@@ -238,12 +240,20 @@
 	 * matched on and consumed the digit. */
 	function parseIntExpr() {
 	    //say("Parsing Int Expr")
+	    CST.addNode(B_INTEXPR,K_BRANCH)
+	    CST.addNode(B_DIGIT,K_BRANCH)
+	    CST.addNode(new Leaf(L_DIGIT,thisToken.value),K_LEAF)
+	    CST.goUp()
 	    if (checkToken(kCheck).kind != K_OPERAND)
 		return
 	    else {
 		match(K_OPERAND)
+		CST.addNode(B_OPERAND,K_BRANCH)
+		CST.addNode(new Leaf(L_OPERAND,thisToken.value),K_LEAF)
+		CST.goUp()
 		parseExpr()
 	    }
+	    CST.goUp()
 	    return
 	}
 	
@@ -253,8 +263,15 @@
 	 * matched on and consumed the beginning quote. */
 	function parseCharExpr() {
 	    //say("Parsing Char Expr")
+	    CST.addNode(B_CHAREXPR,K_BRANCH)
 	    parseCharList()
 	    match(K_QUOTE)
+	    // Is this necessary??? A char expr can't be anything BUT a charlist ... 
+	    CST.addNode(B_CHARLIST,K_BRANCH)
+	    CST.addNode(new Leaf(L_CHARLIST,charlist),K_LEAF)
+	    CST.goUp()
+	    CST.goUp()
+	    charlist = ""
 	    return
 	}
 	
@@ -268,10 +285,14 @@
 	 * it wouldn't match K_CHAR. */
 	function parseCharList() {
 	    //say("Parsing Char List")
+	    //CST.addNode(B_CHARLIST,K_BRANCH)
 	    if (checkToken(kCheck).kind != K_QUOTE) {
 		match(K_CHAR)
+		charlist = charlist + thisToken.value 
 		parseCharList()
 	    }
+	    //CST.addNode(B_CHARLIST,K_BRANCH)
+	    //CST.goUp()
 	    return;
 	}
 	
@@ -286,27 +307,31 @@
 	 * that was seen by parseStatement was the type) */
 	function parseVarDecl() {
 	    //say("Parsing Var Decl")
+	    CST.addNode(B_DECLARE,K_BRANCH)
 	    if (match(K_ID) == kSuccess) {
 		/* If the current node of symbol tree is undefined, we must be parsing a verrrry simple testcase
 		 * in which there are no statement lists.  Create a node (the only one) in the symbol tree to store
 		 * this (only) symbol */
-		if (symbolTree.root == null)
-		    symbolTree.addNode(new Array(), true);
-		/* Check to see if the current scope already has the variable defined */
-		var foundRedefine = false
-    		for (var i = 0; i < symbolTree.cur.name.length && foundRedefine == false; i++)
-                    {
-			if (symbolTree.cur.name[i].name == thisToken.value) {
-			    error("  Found variable redeclaration for variable " + thisToken.value)
-			    //numErrors = numErrors + 1
-			    foundRedefine = true
-			}
-                    }
-		if (foundRedefine == false)
-		    symbolTree.cur.name.push(new Symbol(thisToken.value, lastToken.value))
-		else
-		    symbolTree.cur.name[i-1].type = lastToken.value
+//		if (symbolTree.root == null)
+//		    symbolTree.addNode(new Array(), true);
+//		/* Check to see if the current scope already has the variable defined */
+//		var foundRedefine = false
+//    		for (var i = 0; i < symbolTree.cur.name.length && foundRedefine == false; i++)
+//                    {
+//			if (symbolTree.cur.name[i].name == thisToken.value) {
+//			    error("  Found variable redeclaration for variable " + thisToken.value)
+//			    //numErrors = numErrors + 1
+//			    foundRedefine = true
+//			}
+//                    }
+//		if (foundRedefine == false)
+//		    symbolTree.cur.name.push(new Symbol(thisToken.value, lastToken.value))
+//		else
+//		    symbolTree.cur.name[i-1].type = lastToken.value
+		CST.addNode(new Leaf(L_TYPE,lastToken.value), K_LEAF)
+		CST.addNode(new Leaf(L_ID,thisToken.value), K_LEAF)
 	    }
+	    CST.goUp()
 	    return	
 	}
 
@@ -331,7 +356,6 @@
 		}
 	    }
 	    error("  Didnt find one of the expected tokens. Found " + thisToken.kind + " instead.")
-	    //numErrors = numErrors + 1;
 	    return kFailure
 	}
 	
@@ -346,7 +370,6 @@
 	    }
 	    else {
 		error("  Didnt find " + tokenKind + ". Found " + thisToken.kind + " instead.")
-		//numErrors = numErrors + 1
 	    }
 	    return kFailure
 	}
@@ -382,3 +405,76 @@
 	    say(msg)
 	    numErrors = numErrors + 1
 	}
+	
+	function debug(msg) {
+	    if (debugFlag == true) 
+		results.push(msg)
+	}
+	
+    CSTtoAST = function(CST) {
+        AST = new Tree()
+
+    
+    buildAST = function(node) {
+        
+        if (node.name == B_STATEMENTLIST ||
+            node.name == B_PRINT ||
+            node.name == B_ASSIGN ||
+            node.name == B_DECLARE ||
+	    node.name == B_INTEXPR ||
+            node.children.length == 0) {
+	    //if (node.name != B_INTEXPR)
+		AST.addNode(node.name,K_BRANCH)
+	    if (node.children.length == 0 && AST.cur.parent.name !== B_INTEXPR)
+		AST.goUp()
+	}
+
+            
+        // If there are no children (i.e., leaf nodes)...
+            if (!node.children || node.children.length === 0)
+                return
+            // .. else there are children, so traverse them to build the AST
+            for (var i = 0; i < node.children.length; i++)
+            {
+                buildAST(node.children[i]);
+            }
+		
+	    AST.goUp()
+    }
+    
+        cleanAST = function(node) {
+
+        // If there are no children (i.e., leaf nodes)...
+            if (!node.children || node.children.length === 0)
+                return
+            // .. else there are children, so traverse them to build the AST
+            for (var i = 0; i < node.children.length; i++)
+            {
+                cleanAST(node.children[i]);
+            }
+
+	    if (node.name == B_INTEXPR && node.children.length == 1) {
+		node.parent.children.splice(node.parent.children.length-1,1)
+		node.parent.children.push(node.children[0])
+		node.children[0].parent = node.parent
+		AST.goUp()
+	    }
+	    
+	    if (node.name == B_INTEXPR && node.children.length == 3) {
+		node.parent.children.splice(node.parent.children.length-1,1)
+		node.parent.children.push(node.children[1])
+		node.children[1].parent = node.parent
+		node.children[0].parent = node.children[1]
+		node.children[2].parent = node.children[1]
+		node.children[1].children.push(node.children[0])
+		node.children[1].children.push(node.children[2])
+		AST.goUp()
+	    }
+		
+	    
+    }
+    
+        buildAST(CST.root)
+	cleanAST(AST.root)
+        return AST
+    }

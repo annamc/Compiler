@@ -25,6 +25,7 @@
     const K_CHAR = "char";
     const K_TYPE = "type";
     const K_ID = "identifier";
+
     
     /* Errors and warnings */
     const eErrorsFound = "Errors were found";
