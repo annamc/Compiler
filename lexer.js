@@ -27,13 +27,6 @@ var Token = function(k, v, l, w, toknum){
 	    return ""
     }
     
-    t.warnOutput = function() {
-	if (t.warn)
-	    return "\n**Warning: " + t.warn + "**";
-	else
-	    return ""
-	
-    }
     t.toString = function(){
 	if (t.value)
 	    return "<" + t.kind + " : "+t.value+"> "
@@ -43,27 +36,31 @@ var Token = function(k, v, l, w, toknum){
     
     t.toLongString = function(){
 	if (t.value)
-	    return t.toknum + ": <" + t.kind + " : "+t.value+"> " + t.lineOutput() + t.warnOutput();
+	    return t.toknum + ": <" + t.kind + " : "+t.value+"> " + t.lineOutput()
 	else
-	    return t.toknum + ": <" + t.kind + "> " + t.lineOutput() + t.warnOutput();
+	    return t.toknum + ": <" + t.kind + "> " + t.lineOutput()
     }
     return t;
 }
-
+    var errors
+    var warnings
+    var tokens
+    
     function lex()
     {
 	Token.counter = null;
-        var tokens = {};
+        //var tokens = {};
         tokens = new Array();
 	var returnString = "";
-	var errors = {};
+	//var errors = {};
 	errors = new Array();
+	warnings = new Array();
 	var inQuotes = false;
 	var quotesBegin = 0;
 	var foundEOF = false;
 	var tempString = '';
 	
-	errors.push(eErrorsFound);
+	//errors.push(eErrorsFound);
 	
 	// Grab the "raw" source code.
         var sourceCode = document.getElementById("taSourceCode").value.trim();
@@ -83,8 +80,10 @@ var Token = function(k, v, l, w, toknum){
 		if (/\"/.test(lines[line].charAt(i))) {
 		    if (inQuotes)
 			inQuotes = false
-		    else
+		    else {
 			inQuotes = true
+			quotesBegin = line + 1
+		    }
 		}
 		// Replace spaces with hex A9 (copyright symbol) if they're within quotes
 		// Tried to use hex 00, but I guess Javascript strings must be null terminated
@@ -127,7 +126,7 @@ var Token = function(k, v, l, w, toknum){
 				inQuotes = false
 			    else {
 				inQuotes = true
-				quotesBegin = line+1
+				quotesBegin = 0
 			    }
 			break;
 		    
@@ -171,7 +170,9 @@ var Token = function(k, v, l, w, toknum){
 			// If the next token is a recognized reserved word
 			case (words[j] in ReservedWords):
 			    tokens.push(Token(ReservedWords[eval("\"" + words[j] + "\"")].lexeme, ReservedWords[eval("\"" + words[j] + "\"")].value,
-					      line+1, ReservedWords[eval("\"" + words[j] + "\"")].warning))			    
+					      line+1))
+			    if (ReservedWords[eval("\"" + words[j] + "\"")].warning)
+				warnings.push(ReservedWords[eval("\"" + words[j] + "\"")].warning + " at line " + eval(line+1))
 			break;
 		    
 			// If the next token is a plus sign
@@ -213,12 +214,11 @@ var Token = function(k, v, l, w, toknum){
 			case (words[j] == "$"):
 			    // Indicate that EOF symbol was seen
 			    foundEOF = true
-			    // If we're not at the end of the input, push the token with a warning
+			    // If we're not at the end of the input, push the token and a warning
 			    // Otherwise just push the token
 			    if (j<words.length - 1|| line < lines.length - 1)
-				tokens.push(Token(K_DOLLAR,null,line+1,wMoreInput))
-			    else
-				tokens.push(Token(K_DOLLAR,null,line+1))
+				warnings.push(wMoreInput)
+			    tokens.push(Token(K_DOLLAR,null,line+1))
 			break;
 			
 			// If the next token is a valid identifier
@@ -251,16 +251,15 @@ var Token = function(k, v, l, w, toknum){
 	if (inQuotes)
 	    errors.push("Unterminated quotes beginning on line " + quotesBegin);
 	    
-	// If all the input was processed and the EOF meta-symbol wasn't seen, push it with a warning
-	if (foundEOF == false)
-	    tokens.push(Token(K_DOLLAR,null,null,wNoEOF))
+	// If all the input was processed and the EOF meta-symbol wasn't seen, push it and push a warning
+	if (foundEOF == false) {
+	    tokens.push(Token(K_DOLLAR,null,null))
+	    warnings.push(wNoEOF)
+	}
 	    
-	// If at least one error was found (errors[0] is a string constant kErrors), then return
-	// the array of errors. Otherwise return the array of tokens (The tokens include warning messages
-	// where appropriate).  
-	if (errors.length > 1)
-	    return errors;
-	else
-	    return tokens;      
+	// Return an object containing the token stream, the errors (which may be empty) and the warnings
+	// (which may also be empty). The code in compiler.html will know what to do with it all
+	
+	return { tokens : tokens, errors : errors , warnings: warnings}
     } // End function lex
 

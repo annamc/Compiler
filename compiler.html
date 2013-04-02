@@ -20,11 +20,11 @@
            document.getElementById("taParseScope").value = "";
            document.getElementById("ta3").value = "";
            // (Re)Initialize some stuff.  
-           tokens = new Array()
-           symbols = new Array()
-           results = new Array()
-           symbolTree = new Tree()
-           CST = new Tree()
+           //tokens = new Array()
+           //symbols = new Array()
+           //results = new Array()
+           //symbolTree = new Tree()
+           //CST = new Tree()
          }
        
          function btnCompile_click() {        
@@ -33,27 +33,35 @@
            // Note the <input> element's event handler: onclick="btnCompile_click();
            init();
            // Grab the tokens from the lexer . . .
-           tokens = lex();
+           LexOutput = lex();
            // If the lexer found errors, the first token will be constant eErrorsFound.
            // If this happens, indicate errors were found and print all errors.
            // Lex is allowed to find multiple errors.
            // If lex finds errors, don't parse
-           if (tokens[0] == eErrorsFound) {
+           if (LexOutput.errors.length >= 1) {
              putMessage("taLexResults","Lex errors found!");
-             for (var e=1; e<tokens.length; e++) {
-               putMessage("taLexOutput"," " + tokens[e]);
+             for (var e=0; e<LexOutput.errors.length; e++) {
+               putMessage("taLexResults"," " + LexOutput.errors[e]);
              }
            }
            // Otherwise lex found no errors.
            // Indicate lex was successful and output all tokens,
            // then kick off parse.  
            else {
-             putMessage("taLexResults","Lex was successful!");
-             putMessage("taLexOutput"," Token stream:");
+               if (LexOutput.warnings.length >= 1) {
+                  putMessage("taLexResults","Lex was successful but warnings were issued")
+                  for (var e=0; e<LexOutput.warnings.length; e++) {
+                     putMessage("taLexResults"," " + LexOutput.warnings[e]);
+                  }
+               }
+               else
+                  putMessage("taLexResults","Lex was successful!");
+             putMessage("taLexOutput","Token stream:");
              for (var e=0; e<tokens.length; e++) {
-               putMessage("taLexOutput","  " + tokens[e].toLongString());
+               putMessage("taLexOutput"," " + tokens[e].toLongString());
             }
-            parseOutput = parse(symbolTree);
+            parseOutput = parse();
+            //parseOutput = parse(symbolTree);
             if (parseOutput.results[0] == eErrorsFound) {
              putMessage("taParseResults","Parse errors found!");
              }
@@ -61,14 +69,15 @@
            // Indicate lex was successful and output all tokens,
            // then kick off parse.  
            else {
-             putMessage("taParseResults","Parse was successful!");
+               putMessage("taParseResults","Parse was successful!");
+               putMessage("taParseCST",""+parseOutput.CST.toString());
+               putMessage("taParseAST",""+parseOutput.AST.toString());
+               putMessage("taParseScope",""+parseOutput.Scope.toString());
             }
             
             for (var r=1; r<parseOutput.results.length; r++) {
                putMessage("taParseResults"," " + parseOutput.results[r]);
            }
-            putMessage("taParseCST",""+parseOutput.CST.toString());
-            putMessage("taParseAST",""+parseOutput.AST.toString());
          }
        }
            
@@ -123,7 +132,7 @@ op            ::== + | -
                            Lex Results
                         </td>
                         <td>
-                           Lex Output
+                           Token Stream
                         </td>
                      </tr>
                      <tr>
