@@ -2,7 +2,7 @@
 /* February 2013 */
 /* parser.js  */
 
-
+    var debugMode = false
 	
     /* Index of the token currently being processed */	
     var tokenIndex = 0;
@@ -10,28 +10,43 @@
     var lastToken = new Token();
     var thisToken = new Token();
 	
-	
     var numErrors
+    var numWarnings
     var results
+    var warnings
+    var errors
     var Scope
     var CST
     var AST
 	
     charlist = "";
 	
-    /* Symbol. So far a symbol has a name, a type, and a number.
-     * Later it'll have more fun stuff like scope and usage */
-    var Symbol = function(n, t, symnum){
+    /* Symbol. A symbol has the following attributes:
+     * 		- name (of the identifier)
+     * 		- type
+     * 		- declareAt (line in the source code where the symbol is declared. 0 if it hasn't been declared)
+     * 		- initAt (line in the source code where the symbol is LAST assigned a value. 0 if it hasn't been assigned yet)
+     * 		- usedAt (line in the source code where the symbol was LAST used. 0 if it hasn't been used)
+     *
+     * 		  A symbol is used if it is:
+     * 		  	in a print statement
+     * 		  	the right-hand side of an assignment statement
+     * 		  	(later, if it's in the condition of an if or a while statement)
+     *
+     *  	The scope of a symbol is not kept in the symbol itself. It is known by where in the symbol tree table the symbol is.  	  	
+     */
+    var Symbol = function(name, type, declareAt, initAt, usedAt, symnum){
 	// Keep a count of symbols
 	if (Symbol.counter == undefined) 
 	    Symbol.counter = 0;
 	else 
 	    Symbol.counter++;
     
-	var s = {name: n, type: t, symnum: Symbol.counter};
+	var s = {name: name, type: type, declareAt: declareAt, initAt: 0, usedAt: 0, symnum: Symbol.counter};
     
 	s.toString = function(){
-	    return "<" + s.name + " : "+s.type+">";
+	    //return "<" + s.name + " : "+s.type+ "; " + s.declareAt + "; " + s.initAt + "; " + s.usedAt + ">";
+	    return "<" + s.name + " : "+ s.type + ">";
 	}
 	return s;
     }
@@ -39,6 +54,9 @@
 
     /* Create a fake Symbol in order to define Symbol.counter */
     setSymbolCounter = new Symbol("fake name","fake type")
+    
+    
+    var thisSymbol = new Symbol()
 
 	/* Parse
 	 * Initializes variables, then calls parseProgram to kick off the parser.
@@ -47,12 +65,15 @@
          function parse() {
 
 	    results = new Array();
+	    errors = new Array()
+	    warnings = new Array()
 	    Scope = new Tree();
 	    CST = new Tree();
 	    AST = new Tree();
     
 	    tokenIndex = 0
 	    numErrors = 0
+	    numWarnings = 0
 	    
 	    /* 2nd and subsequent times this proc is called, want to reset the symbol table counter */
 	    if (Symbol.counter)
@@ -67,6 +88,7 @@
 
 	    AST = CSTtoAST(CST)
 	    Scope = ASTtoScope(AST)
+	    CheckForScopeWarnings()
 	    	    /* If an error was encountered, fill in that first array element (the one that was null) with
 	     * the "errors were found" constant. Push an element on the array at the end to indicate the
 	     * total number of errors found. */
@@ -75,11 +97,15 @@
 		/* Sorry, I'm a grammar nut :-)  Couldn't stand the "1 parse errors" and didn't want to
 		 * cheat by using "error(s)" */
 		if (numErrors == 1)
-		    say("\n" + numErrors + " parse error found.")
+		    error("\n" + numErrors + " parse error found.")
 		else
-		    say("\n" + numErrors + " parse errors found.")
+		    error("\n" + numErrors + " parse errors found.")
+		if (numWarnings == 1)
+		    warn("\n" + numWarnings + " warnings issued.")
+		else
+		    warn("\n" + numWarnings + " warnings issued.")
 	    }
-	    return { results : results, CST : CST , AST: AST , Scope : Scope}
+	    return { errors : errors, warnings : warnings, CST : CST , AST: AST , Scope : Scope}
 	}
 	
 	/* Parse program
@@ -87,7 +113,7 @@
 	 * parseProgram unconditionally calls parseStatement, then matches on
 	 * the K_DOLLAR EOF indicator token. */
 	function parseProgram() {
-	    //say("Parsing Program");
+	    debug("Parsing Program");
 	    CST.addNode(B_PROGRAM)
 	    parseStatement()
 	    match(K_DOLLAR)
@@ -135,6 +161,7 @@
 		    // The fact is that this is a concrete syntax TREE instead of a concrete syntax LIST or a concrete syntax QUEUE or STACK or some other
 		    // data structure that doesn't show the structure of the program.
 		    // Just so I don't have to say so later ... same thing for the parentheses around the expression that's the target of print. They add nothing.
+		    // And the quotes around a charlist.  
 		    // And since my CST to AST function assumes that all leaf nodes should belong to the AST they require some special-casing there. Pain.  
 		    parseStatementList()
 		    // And here's where I would add a node for the right bracket to the CST. It would only screw things up later. Let's leave it off.  
@@ -152,7 +179,7 @@
 	 * parsePrintStatement is called by parseStatement when a Print operation
 	 * has been encountered (the P has been consumed). */
 	function parsePrintStatement() {
-	    //say("Parsing Print Statement")
+	    debug("Parsing Print Statement")
 	    CST.addNode(B_PRINT)
 	    match(K_LPAREN)
 	    parseExpr()
@@ -166,9 +193,9 @@
 	 * parseAssignStatement is called by parseStatement when an identifier
 	 * has been encountered (the identifier has been consumed). */ 
 	function parseAssignStatement() {
-	    //say("Parsing Assign Statement")
+	    debug("Parsing Assign Statement")
 	    CST.addNode(B_ASSIGN)
-	    CST.addNode(new Leaf(L_ID,thisToken.value))
+	    CST.addNode(thisToken)
 	    CST.goUp()
 	    match(K_EQUAL)
 	    parseExpr()
@@ -188,7 +215,7 @@
 	 *  see if another statement is there or if the end of statement list/EOF
 	 *  is found. */
 	function parseStatementList() {
-	    //say("Parsing Statement List")
+	    debug("Parsing Statement List")
 	    if (checkToken(kCheck).kind == K_DOLLAR) {
 		// reached end of file before closing brackets
 		error('End of file reached before statement list was closed!')
@@ -214,7 +241,7 @@
 	 * or an identifier.  If identifier, no function is called since I
 	 * can just match on K_ID from here. */
 	function parseExpr() {
-	    //say("Parsing Expr")
+	    debug("Parsing Expr")
 	    CST.addNode(B_EXPR)
 	    matchMany([K_DIGIT,K_QUOTE,K_ID])
 	    switch (true) {
@@ -228,7 +255,7 @@
 		}
 		case (thisToken.kind == K_ID): {
 		    CST.addNode(B_IDEXPR)
-		    CST.addNode(new Leaf(L_ID,thisToken.value))
+		    CST.addNode(thisToken)
 		    CST.goUp()
 		    CST.goUp()
 		    break
@@ -246,10 +273,10 @@
 	 * parseIntExpr is called by parseExpr, which has already
 	 * matched on and consumed the digit. */
 	function parseIntExpr() {
-	    //say("Parsing Int Expr")
+	    debug("Parsing Int Expr")
 	    CST.addNode(B_INTEXPR)
 	    CST.addNode(B_DIGIT)
-	    CST.addNode(new Leaf(L_DIGIT,thisToken.value))
+	    CST.addNode(thisToken)
 	    CST.goUp()
 	    CST.goUp()
 	    if (checkToken(kCheck).kind != K_OPERAND) {
@@ -259,7 +286,7 @@
 	    else {
 		match(K_OPERAND)
 		CST.addNode(B_OPERAND)
-		CST.addNode(new Leaf(L_OPERAND,thisToken.value))
+		CST.addNode(thisToken)
 		CST.goUp()
 		CST.goUp()
 		parseExpr()
@@ -273,12 +300,12 @@
 	 * parseCharExpr is called by parseExpr, which has already
 	 * matched on and consumed the beginning quote. */
 	function parseCharExpr() {
-	    //say("Parsing Char Expr")
+	    debug("Parsing Char Expr")
 	    CST.addNode(B_CHAREXPR)
 	    parseCharList()
 	    match(K_QUOTE)
 	    CST.addNode(B_CHARLIST)
-	    CST.addNode(new Leaf(L_CHARLIST,charlist))
+	    CST.addNode(new Token(K_CHARLIST,charlist,lastToken.loc))
 	    CST.goUp()
 	    CST.goUp()
 	    CST.goUp()
@@ -295,7 +322,7 @@
 	 * are valid Chars, but if one slipped through it would be caught because
 	 * it wouldn't match K_CHAR. */
 	function parseCharList() {
-	    //say("Parsing Char List")
+	    debug("Parsing Char List")
 	    if (checkToken(kCheck).kind != K_QUOTE) {
 		match(K_CHAR)
 		charlist = charlist + thisToken.value 
@@ -314,12 +341,12 @@
 	 * and lastToken.value is the type of the variable (because the previous lexeme
 	 * that was seen by parseStatement was the type) */
 	function parseVarDecl() {
-	    //say("Parsing Var Decl")
+	    debug("Parsing Var Decl")
 	    CST.addNode(B_DECLARE)
 	    if (match(K_ID) == kSuccess) {
-		CST.addNode(new Leaf(L_TYPE,lastToken.value))
+		CST.addNode(lastToken)
 		CST.goUp()
-		CST.addNode(new Leaf(L_ID,thisToken.value))
+		CST.addNode(thisToken)
 		CST.goUp()
 	    }
 	    CST.goUp()
@@ -339,10 +366,10 @@
 		else
 		    output = output + "or " + tokenKinds[k]
 	    }
-	    //say(output)
+	    debug(output)
 	    for (var k=0; k<tokenKinds.length; k++) {
 		if (thisToken.kind == tokenKinds[k]) {
-		    //say("  Found " + thisToken.kind + "!")
+		    debug("  Found " + thisToken.kind + "!")
 		return kSuccess
 		}
 	    }
@@ -354,9 +381,9 @@
 	 * Returns kSuccess if the expected token was found and kFailure if something else was found. */
 	function match(tokenKind) {
 	    thisToken = checkToken(kConsume)
-	    //say("Checking for " + tokenKind)
+	    debug("Checking for " + tokenKind)
 	    if (thisToken.kind == tokenKind) {
-		//say("  Found " + tokenKind + "!")
+		debug("  Found " + tokenKind + "!")
 		return kSuccess
 	    }
 	    else {
@@ -374,7 +401,7 @@
 	    lastToken = thisToken
 	    var indexToGet = tokenIndex
 	    if (consume == kConsume) {
-		//say("Consumed " + tokens[tokenIndex])
+		debug("Consumed " + tokens[tokenIndex])
 		tokenIndex = tokenIndex + 1
 	    }
 	    if (tokenIndex >= tokens.length) {
@@ -383,23 +410,29 @@
 	    return tokens[indexToGet];
 	}
 	
-	/* say is a function I wrote when I wasn't sure exactly how I planned to return
-	 * errors back to the user. It used to write the errors straight to the textarea, but
-	 * I didn't really like that.
-	 * I left say in here rather than replace invocations with results.push(), mostly out
-	 * of lazyness but also to make it easy to change in the future if needed. */
+	/* Push a message to results. */
 	function say(msg) {
 	    results.push(msg)
 	}
 	
-	/* Push a message to results and increment numErrors */
+	/* Push a message to errors and increment numErrors */
 	function error(msg) {
-	    say(msg)
+	    errors.push(msg)
 	    numErrors = numErrors + 1
 	}
 	
+	/* Push a message to warnings and increment numWarnings */
+	function warn(msg) {
+	    warnings.push(msg)
+	    numWarnings = numWarnings + 1
+	}
+	
+	/* Write something to the console, if debug mode is on. Debug mode can be set at the top of this module.
+	 * It'd probably be a better idea to put the debug mode flag in a common module and be able to invoke this
+	 * function from anywhere. For now, parse is the only thing that really needs debugged ... */
 	function debug(msg) {
-	    console.log(msg)
+	    if (debugMode)
+		console.log(msg)
 	}
 	
     /* CSTtoAST is a function that creates an AST based on the CST (which was built during the parse phase) */	
@@ -535,7 +568,6 @@
 	} // Oh look! Here's the end of the cleanAST function
     
 	
-	console.log("starting AST")
 	// Build the AST starting at the root of the CST
         buildAST(CST.root)
 	// Clean the AST starting at its root
@@ -562,9 +594,9 @@
 		// If we've found a declare node, then check to make sure the variable being declared isn't already declared in this scope and if not, add it to
 		// the symbol table
 		case (node.name == B_DECLARE): {
-		    //alert("declare " + node.children[1].name.value)
+		    debug("Declare " + node.children[1].name.value)
 		    // The only way Scope.root could be null is if there is no statement list, therefore this declare statement is the only statement of the program.
-		    // Not much point since nothing will be done with it anyway, but we might as well add it to the symbol table. But first, we need a symbol table ...
+		    // Not much point adding it since nothing will be done with it anyway, but we might as well anyway. But first, we need a symbol table ...
 		    if (Scope.root == null)
 			Scope.addNode(new Array());
 		    // Check to see if the current scope already has the variable defined
@@ -573,22 +605,26 @@
 		    for (var i = 0; i < Scope.cur.name.length && foundRedefine == false; i++) {
 			// If there's a symbol already in the scope table with the same name, then issue an error message and stop the scan through the current scope
 			if (Scope.cur.name[i].name == node.children[1].name.value) {
-			    error("  Found variable redeclaration for variable " + node.children[1].name.value)
+			    error("  Found variable redeclaration for variable " + node.children[1].name.value + " on line " + node.children[1].name.loc +
+				  ". The variable was originally declared as " + Scope.cur.name[i].type + " on line " + Scope.cur.name[i].declareAt)
 			    foundRedefine = true
 			}
                     } // End scan through current scope
 		    // If the variable being defined isn't already in the scope, add it
 		    if (foundRedefine == false) {
-			Scope.cur.name.push(new Symbol(node.children[1].name.value, node.children[0].name.value))
+			Scope.cur.name.push(new Symbol(node.children[1].name.value, node.children[0].name.value,node.children[1].name.loc))
 		    }
+		    break;
 		}
 		// If we've found an assign node, then check to make sure the identifier being assigned is in the current scope
-		//case (node.name == B_ASSIGN): {
-		//    alert("assign " + node.children[0].name.value)
-		//   
-		//    if (Scope.findVariableInScope(node.children[0].name.value) == null)
-		//	say("Variable "+ node.children[0].name.value + " assigned but not defined")
-		//}
+		case (node.name == B_ASSIGN): {
+		    debug("assign " + node.children[0].name.value)
+		    thisSymbol = Scope.findVariableInScope(node.children[0].name.value)
+		    if (thisSymbol == null)
+			error("Variable "+ node.children[0].name.value + " assigned a value on line " + node.children[0].name.loc + " but it is not defined in the current scope")
+		    else 
+			thisSymbol.initAt = node.children[0].name.loc	
+		}
 		default:
 		    break;
 	    } // End pre-order switch statement
@@ -619,3 +655,34 @@
 	// Return the scope table tree (regardless of whether or not errors were encountered)
         return Scope
     } // End of ASTtoScope()
+    
+        /* CheckForScopeWarnings */
+    CheckForScopeWarnings = function() {
+	
+	checkScope = function(node) {
+	    
+		// Check the current scope
+		for (var s = 0; s < node.name.length; s++) {
+		    if (node.name[s].usedAt == 0 && node.name[s].initAt == 0)
+			warn(node.name[s].name + " was declared at line " + node.name[s].declareAt + " but was never assigned a value or used ")
+		    else if (node.name[s].usedAt == 0)	
+			warn(node.name[s].name + " was declared at line " + node.name[s].declareAt + " and last assigned at line " + node.name[s].initAt + " but was never used ")
+		}
+		
+	    // Now, traverse the scope table tree.
+	    // If there are no children, then return
+            if (!node.children || node.children.length === 0)
+                return
+            // Else there are children, so traverse them to check the scope
+            for (var i = 0; i < node.children.length; i++)
+                checkScope(node.children[i]);
+
+
+		
+	} // End checkScope function within CheckForScopeWarnings()
+	    
+	  
+	checkScope(Scope.root)
+	// Return 
+        return 
+    } // End of CheckForScopeWarnings()

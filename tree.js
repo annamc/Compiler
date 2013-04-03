@@ -95,7 +95,6 @@ function Tree() {
     // Note that we're done with this branch of the tree...
     this.goUp = function() {
         // ... by moving "up" to our parent node (if possible).
-        console.log("goUp called from " + this.cur.name + " to " + this.cur.parent.name)
         if ((this.cur.parent !== null) && (this.cur.parent.name !== undefined))
         {
             this.cur = this.cur.parent;
@@ -148,13 +147,15 @@ function Tree() {
     
     this.findVariableInScope = function(variable) {
 	    thisScope = this.cur;
+            if (this.cur == {})
+                return null
 	    while (thisScope.name !== undefined)
 	    {
 	    if (thisScope.name !== undefined) {	
     	    for (var i = 0; i < thisScope.name.length; i++)
                 {
 		    if (this.cur.name[i].name == variable) {
-			return this.cur.name[i].type
+			return this.cur.name[i]
 		    }
                 }
 	    }

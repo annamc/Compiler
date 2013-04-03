@@ -61,23 +61,27 @@
                putMessage("taLexOutput"," " + tokens[e].toLongString());
             }
             parseOutput = parse();
-            //parseOutput = parse(symbolTree);
-            if (parseOutput.results[0] == eErrorsFound) {
+            if (parseOutput.errors.length >= 1) {
              putMessage("taParseResults","Parse errors found!");
+             for (var e=0; e<parseOutput.errors.length; e++) {
+               putMessage("taParseResults"," " + parseOutput.errors[e]);
+             }
              }
            // Otherwise lex found no errors.
            // Indicate lex was successful and output all tokens,
            // then kick off parse.  
            else {
-               putMessage("taParseResults","Parse was successful!");
+               if (parseOutput.warnings.length == 0)
+                  putMessage("taParseResults","Parse was successful!");
+               else  { 
+                  putMessage("taParseResults","Parse was successful but warnings were issued");
+                  for (var e=0; e<parseOutput.warnings.length; e++) 
+                     putMessage("taParseResults"," " + parseOutput.warnings[e]);
+               }
                putMessage("taParseCST",""+parseOutput.CST.toString());
                putMessage("taParseAST",""+parseOutput.AST.toString());
                putMessage("taParseScope",""+parseOutput.Scope.toString());
             }
-            
-            for (var r=1; r<parseOutput.results.length; r++) {
-               putMessage("taParseResults"," " + parseOutput.results[r]);
-           }
          }
        }
            
