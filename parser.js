@@ -45,24 +45,23 @@
 	 * Puts an indication of how many errors were found in the results, then
 	 * returns results to the called (compiler.html) */
          function parse() {
-	    
-	    /* Add a (root) node to the symbol table tree, and make it the current node */
-	    //symbolTree.addNode(new Array(), true);
 
 	    results = new Array();
-    Scope = new Tree();
-    CST = new Tree();
-    AST = new Tree();
-    
+	    Scope = new Tree();
+	    CST = new Tree();
+	    AST = new Tree();
     
 	    tokenIndex = 0
 	    numErrors = 0
+	    
 	    /* 2nd and subsequent times this proc is called, want to reset the symbol table counter */
 	    if (Symbol.counter)
-		Symbol.counter = 0
+		Symbol.counter = 
+		
 	    /* First message on array will be changed after parse to indicate if errors were found.  
 	    Leave a spot for it to avoid having to shuffle the results array when parse is done */
 	    results.push(null)
+	    
 	    /* Ready to go! */
 	    parseProgram()
 
@@ -90,7 +89,7 @@
 	function parseProgram() {
 	    //say("Parsing Program");
 	    CST.addNode(B_PROGRAM)
-	    parseStatement();
+	    parseStatement()
 	    match(K_DOLLAR)
 	    CST.goUp()
 	    return
@@ -113,7 +112,7 @@
 	 *  The functions called by parseStatement are aware that the K_PRINT, K_ID,
 	 *  K_TYPE, OR K_LBRACKET token have already been consumed. */
 	function parseStatement() {
-	    //say("Parsing Statement");
+	    //debug("Parsing Statement");
 	    CST.addNode(B_STATEMENT)
 	    matchMany([K_PRINT,K_ID,K_TYPE,K_LBRACKET]);
 	    switch (true) {
@@ -130,10 +129,15 @@
 		    break
 		}
 		case (thisToken.kind == K_LBRACKET): {
-		    /* If a statement list is beginning, create a new node on the syntax tree and make it the current */
-		    //symbolTree.addNode(new Array(), true);
 		    CST.addNode(B_STATEMENTLIST)
+		    // Here's where I would add a node to the CST for the left bracket, if I wanted to have to deal with it.
+		    // The bracket exists to make the programmer's intent (following is a block of statements that define a scope) clear.
+		    // The fact is that this is a concrete syntax TREE instead of a concrete syntax LIST or a concrete syntax QUEUE or STACK or some other
+		    // data structure that doesn't show the structure of the program.
+		    // Just so I don't have to say so later ... same thing for the parentheses around the expression that's the target of print. They add nothing.
+		    // And since my CST to AST function assumes that all leaf nodes should belong to the AST they require some special-casing there. Pain.  
 		    parseStatementList()
+		    // And here's where I would add a node for the right bracket to the CST. It would only screw things up later. Let's leave it off.  
 		    break
 		}
 		default:
@@ -164,10 +168,6 @@
 	function parseAssignStatement() {
 	    //say("Parsing Assign Statement")
 	    CST.addNode(B_ASSIGN)
-	    /* Make sure the variable being assigned is in the current scope */
-	    
-	//    if (findVariableInScope(thisToken.value) == null)
-	//	error("Variable "+ thisToken.value + " assigned but not defined")
 	    CST.addNode(new Leaf(L_ID,thisToken.value))
 	    CST.goUp()
 	    match(K_EQUAL)
@@ -199,8 +199,6 @@
 	    }
 	    else {	
 		match(K_RBRACKET)
-		/* If a statement list has been terminated, go up to the parent node in the symbol table */
-		//symbolTree.goUp()
 		CST.goUp()
 	    }
 	    return
@@ -229,8 +227,6 @@
 		    break 
 		}
 		case (thisToken.kind == K_ID): {
-		//    if (findVariableInScope(thisToken.value) == null)
-		//	error("Variable "+ thisToken.value + " referenced but not defined")
 		    CST.addNode(B_IDEXPR)
 		    CST.addNode(new Leaf(L_ID,thisToken.value))
 		    CST.goUp()
@@ -281,7 +277,6 @@
 	    CST.addNode(B_CHAREXPR)
 	    parseCharList()
 	    match(K_QUOTE)
-	    // Is this necessary??? A char expr can't be anything BUT a charlist ... 
 	    CST.addNode(B_CHARLIST)
 	    CST.addNode(new Leaf(L_CHARLIST,charlist))
 	    CST.goUp()
@@ -301,14 +296,11 @@
 	 * it wouldn't match K_CHAR. */
 	function parseCharList() {
 	    //say("Parsing Char List")
-	    //CST.addNode(B_CHARLIST,K_BRANCH)
 	    if (checkToken(kCheck).kind != K_QUOTE) {
 		match(K_CHAR)
 		charlist = charlist + thisToken.value 
 		parseCharList()
 	    }
-	    //CST.addNode(B_CHARLIST,K_BRANCH)
-	    //CST.goUp()
 	    return;
 	}
 	
@@ -325,25 +317,6 @@
 	    //say("Parsing Var Decl")
 	    CST.addNode(B_DECLARE)
 	    if (match(K_ID) == kSuccess) {
-		/* If the current node of symbol tree is undefined, we must be parsing a verrrry simple testcase
-		 * in which there are no statement lists.  Create a node (the only one) in the symbol tree to store
-		 * this (only) symbol */
-//		if (symbolTree.root == null)
-//		    symbolTree.addNode(new Array(), true);
-//		/* Check to see if the current scope already has the variable defined */
-//		var foundRedefine = false
-//    		for (var i = 0; i < symbolTree.cur.name.length && foundRedefine == false; i++)
-//                    {
-//			if (symbolTree.cur.name[i].name == thisToken.value) {
-//			    error("  Found variable redeclaration for variable " + thisToken.value)
-//			    //numErrors = numErrors + 1
-//			    foundRedefine = true
-//			}
-//                    }
-//		if (foundRedefine == false)
-//		    symbolTree.cur.name.push(new Symbol(thisToken.value, lastToken.value))
-//		else
-//		    symbolTree.cur.name[i-1].type = lastToken.value
 		CST.addNode(new Leaf(L_TYPE,lastToken.value))
 		CST.goUp()
 		CST.addNode(new Leaf(L_ID,thisToken.value))
@@ -566,7 +539,7 @@
 	// Build the AST starting at the root of the CST
         buildAST(CST.root)
 	// Clean the AST starting at its root
-	//cleanAST(AST.root)
+	cleanAST(AST.root)
         return AST
     
     } // End of CSTtoAST()
