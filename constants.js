@@ -25,6 +25,7 @@
     const K_CHAR = "char";
     const K_TYPE = "type";
     const K_ID = "identifier";
+    const K_ANYTYPE = "any";
 
     
     /* Errors and warnings */
@@ -41,6 +42,7 @@
      * consume the token that was just checked */
     const kConsume = 1;
     const kCheck = 0;
+    
     /* kSuccess and kFailure are returned from match and matchMany to indicate whether the match
      * was found or not */
     const kSuccess = 0;

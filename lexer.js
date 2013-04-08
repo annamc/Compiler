@@ -1,8 +1,8 @@
 /* Anna Clayton */
-/* February 2013 */
+/* April 2013 */
 /* lexer.js  */
     
-    // Set up hash of all reserved words and which constant they go with
+    // Set up hash of all reserved words and which constant they go with. The "deprecated" keywords have warnings assigned.  
     var ReservedWords = { int: {lexeme: K_TYPE, value: K_INT},
                           P: {lexeme: K_PRINT, value: null, warning: wP},
 			  print: {lexeme: K_PRINT, value: null},
@@ -29,30 +29,32 @@ var Token = function(k, v, l, w, toknum){
     
     t.toString = function(){
 	if (t.value)
-	    return "<" + t.kind + " : "+t.value+"> "
+	    return "<" + t.kind + " : "+t.value+">"
 	else
-	    return "<" + t.kind + "> "
+	    return "<" + t.kind + ">"
     }
     
     t.toLongString = function(){
 	if (t.value)
-	    return t.toknum + ": <" + t.kind + " : "+t.value+"> " + t.lineOutput()
+	    return t.toknum + ": <" + t.kind + " : "+t.value+">" + t.lineOutput()
 	else
-	    return t.toknum + ": <" + t.kind + "> " + t.lineOutput()
+	    return t.toknum + ": <" + t.kind + ">" + t.lineOutput()
     }
     return t;
 }
+
+    /* variables to store the errors, warnings, and token stream. All 3 are kept separate. Initialized at the top of function lex()
+       so that if the compiler is run more than once the errors, warnings, and tokens are initialized each time. */
     var errors
     var warnings
     var tokens
     
+    
     function lex()
     {
+	// Initialize counters and arrays
 	Token.counter = null;
-        //var tokens = {};
         tokens = new Array();
-	var returnString = "";
-	//var errors = {};
 	errors = new Array();
 	warnings = new Array();
 	var inQuotes = false;
@@ -60,18 +62,14 @@ var Token = function(k, v, l, w, toknum){
 	var foundEOF = false;
 	var tempString = '';
 	
-	//errors.push(eErrorsFound);
-	
 	// Grab the "raw" source code.
         var sourceCode = document.getElementById("taSourceCode").value.trim();
-      //  alert(sourceCode);
 	
 	// Break up the source code by line 
 	lines = sourceCode.split(/\n/);
 	
 	// Process each line:
 	for(var line=0; line<lines.length && foundEOF == false; line++) {
-	  //  tempString = '';
 	    // Add spaces around all the punctuation so I can tokenize the string
 	    // If we're within quotes, replace all spaces by the hex character 00
 	    // so we can remember where they were later.  
@@ -88,8 +86,11 @@ var Token = function(k, v, l, w, toknum){
 		// Replace spaces with hex A9 (copyright symbol) if they're within quotes
 		// Tried to use hex 00, but I guess Javascript strings must be null terminated
 		if (inQuotes){
-		    if (/\s/.test(lines[line].charAt(i))) {
+		    if (/ /.test(lines[line].charAt(i))) {
 			tempString += "\xA9"
+		    }
+		    else if (/\t/.test(lines[line].charAt(i))) {
+			tempString += "\xAA"
 		    }
 		}
 		if (/[\$\(\)\+\-\=\{\}\"]/.test(lines[line].charAt(i)))
@@ -102,20 +103,15 @@ var Token = function(k, v, l, w, toknum){
 	    // next line, then continue lexing.  
 	    if (inQuotes)
 		tempString += "\xAA"
-	    // alert(tempString)
 	    if (inQuotes == false) {
 	   // Tokenize the string. Return a list of anything surrounded by spaces
 	    words = tempString.match(/\S+/g);
-	   // alert(words)
 	    // If we found any tokens on this line, 
             if (words) {
-		//alert(words)
 		// For each of them
 		for (var j = 0; j < words.length && foundEOF == false; j++) {
-		//  alert(words[j]);
 		    // Figure out what type of lexeme it is
 		    switch(true) {
-			
 		    	// If the next token is a double quote
 			case (words[j] == "\""):
 			    tokens.push(Token(K_QUOTE, null, line+1))
@@ -152,7 +148,7 @@ var Token = function(k, v, l, w, toknum){
 				    // However, we're never gonna be allowed to add newlines (which were changed to
 				    // xAA characters) to character strings. Generate a lex error
 				    if (/[\xAA]/.test(chars[l]))
-					errors.push("Newline not allowed as part of a character string on line " + eval(line+1));
+					errors.push("Newline and tab not allowed as part of a character string on line " + eval(line+1));
 				    // Else some other not-allowed character (capital letter, punctuation, etc)
 				    // was encountered
 				    else	

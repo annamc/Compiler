@@ -1,19 +1,13 @@
-//-----------------------------------------
-// treeDemo.js
-//
-// By Alan G. Labouseur, based on the 2009
-// work by Michael Ardizzone and Tim Smith.
-//-----------------------------------------
-
-    // What type of node is this? Applicable to CSTs only.  
-    const K_BRANCH = "branch"
-    const K_LEAF = "leaf"
+/* Anna Clayton */
+/* Stolen from work by Alan Labouseur, based on work
+ * by Michael Ardizzone and Tim Smith */
+/* April 2013 */
     
-    // What type of tree is this?
-    const K_SCOPE = "scope"
-    const K_CST = "CST"
+    // What type of tree is this? Not using this value yet, but I will eventually.  
+    const T_SCOPE = "scope"
+    const T_SYNTAX = "syntax"
     
-    // What type of branch is this? Applicable to CSTs only.
+    // What type of branch is this? Applicable to CSTs and ASTs.
     const B_PROGRAM = "program"
     const B_STATEMENT = "statement"
     const B_PRINT = "print"
@@ -28,40 +22,17 @@
     const B_DIGIT = "digit"
     const B_OPERAND = "operand"
     
-    // What type of leaf is this?
-    const L_ID = "id"
-    const L_CHARLIST = "charlist"
-    const L_DIGIT = "digit"
-    const L_OPERAND = "operand"
-    const L_TYPE = "type"
-    
-    var Leaf = function(k, v){
-
-    var l = {kind: k, value: v};
-    
-    l.toString = function(){
-	return "" + l.kind + "," + l.value + ""
-    }
-    
-    return l;
-}
-
-function Tree() {
-    // ----------
-    // Attributes
-    // ----------
-    
-    var AST
+function Tree(treeType) {
     
     this.root = null;  // Note the NULL root node of this tree.
     this.cur = {};     // Note the EMPTY current node of the tree we're building.
+    this.treeType = treeType
 
-
-    // -- ------- --
-    // -- Methods --
-    // -- ------- --
-
-
+    /* addNode
+     * adds a node to the tree which is assigned the input name.
+     * A node is a branch if it has children and a leaf if it doesn't.
+     * Children are assigned if a node is designated as this.cur and new nodes are added
+     */
     this.addNode = function(name) {
         // Construct the node object.
         var node = { name: name,
@@ -87,12 +58,12 @@ function Tree() {
             // Update the CURrent node pointer to ourselves, regardless of whether we are intended
             // to be a branch or leaf node. Since a node is considered a leaf if it has no children,
             // making the distinction only saves us having to call the goUp function for nodes that we
-            // know will be leaves. Might as well issue goUp all the time and not have to specify the
-            // node's type here.  
+            // know will be leaves. Might as well immediately issue goUp from parser.js for all leaf nodes
+            // and not have to specify the node's type here.  
             this.cur = node;
     };
 
-    // Note that we're done with this branch of the tree...
+    // Note that we're done with this branch of the tree and go back up to its parent
     this.goUp = function() {
         // ... by moving "up" to our parent node (if possible).
         if ((this.cur.parent !== null) && (this.cur.parent.name !== undefined))
@@ -102,11 +73,14 @@ function Tree() {
         else
         {
             // This really should not happen, but it will, of course.
-            // Since the first time it happened it didn't have any ill affects I don't really care, but should log it anyway.  
+            // Since the first time it happened it didn't have any ill affects I don't really care,
+            // but should log it anyway.  I expect this to be logged to the console and will only worry about it
+            // if things stop working.  
             console.log("goUp was called, but we were already the root! Turns out this isn't the end of the world ... ")
         }
     };
     
+        // Return a printable string representation of the tree.  
         this.toString = function() {
         // Initialize the result string.
         var traversalResult = "";
@@ -130,9 +104,10 @@ function Tree() {
             }
             else
             {
-                // There are children, so note these interior/branch nodes and ...
+                // There are children, so note these interior/branch nodes.
+                // In the future, pay attention to the tree type and print the scope tree a bit differently
                 traversalResult += "<" + node.name + "> \n";
-                // .. recursively expand them.
+                // .. recursively expand the children.
                 for (var i = 0; i < node.children.length; i++)
                 {
                     expand(node.children[i], depth + 1);
@@ -140,27 +115,9 @@ function Tree() {
             }
         }
         // Make the initial call to expand from the root.
-        expand(this.root, 0);
+        if (this.root != null)
+            expand(this.root, 0);
         // Return the result.
         return traversalResult;
     };
-    
-    this.findVariableInScope = function(variable) {
-	    thisScope = this.cur;
-            if (this.cur == {})
-                return null
-	    while (thisScope.name !== undefined)
-	    {
-	    if (thisScope.name !== undefined) {	
-    	    for (var i = 0; i < thisScope.name.length; i++)
-                {
-		    if (this.cur.name[i].name == variable) {
-			return this.cur.name[i]
-		    }
-                }
-	    }
-		thisScope = this.cur.parent
-	    }
-	    return null
-	}
 }

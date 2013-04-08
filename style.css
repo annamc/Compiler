@@ -27,6 +27,7 @@
 	border-width: thin;
 	padding: 3px;
 	resize: none;
+        white-space: nowrap;
    }
    #taParseResults{
 	width:400px;
@@ -35,6 +36,7 @@
 	border-width: thin;
 	padding: 3px;
 	resize: none;
+        white-space: nowrap;
    }
    #taParseCST{
 	width:400px;
@@ -43,6 +45,7 @@
 	border-width: thin;
 	padding: 3px;
 	resize: none;
+        white-space: nowrap;
    }
    #taParseAST{
 	width:400px;
@@ -51,6 +54,7 @@
 	border-width: thin;
 	padding: 3px;
 	resize: none;
+        white-space: nowrap;
    }
       #taParseScope{
 	width:400px;
@@ -59,6 +63,7 @@
 	border-width: thin;
 	padding: 3px;
 	resize: none;
+        white-space: nowrap;
    }
    #ta3{
 	width:600px;
