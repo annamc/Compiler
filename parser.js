@@ -729,8 +729,6 @@
 		    warn(node.name[s].name + " was declared at line " + node.name[s].declareAt + " but was never assigned a value or used ")
 		else if (node.name[s].usedAt == 0)	
 		    warn(node.name[s].name + " was declared at line " + node.name[s].declareAt + " and last assigned at line " + node.name[s].initAt + " but was never used ")
-		else if (node.name[s].usedAt != 0 && node.name[s].initAt == 0)	
-		    warn(node.name[s].name + " was used at line " + node.name[s].usedAt + " but was never initialized ")
 	    }
 		
 	    // Now, traverse the scope table tree.
@@ -783,6 +781,9 @@
 			error("Identifier " + node.name.value + " was used at line " + node.name.loc + " but has not been declared! ")
 			return false
 		    }
+		    else if (thisSymbol.initAt == 0) {
+			warn(thisSymbol.name + " was used at line " + node.name.loc + " but was not yet initialized ")
+		    }
 		    thisSymbol.usedAt = node.name.loc
 		    return true
 		}
@@ -796,6 +797,9 @@
 		    return false
 		}
 		else if (node.name.kind == K_ID && thisSymbol.type == K_INT) {
+		    	if (thisSymbol.initAt == 0) {
+			    warn(thisSymbol.name + " was used at line " + node.name.loc + " but was not yet initialized ")
+			}
 		    thisSymbol.usedAt = node.name.loc
 		    return true
 		}
