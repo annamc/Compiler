@@ -86,7 +86,25 @@
             }
             putMessage("taParseCST",""+parseOutput.CST.toString());
             putMessage("taParseAST",""+parseOutput.AST.toString());
-            putMessage("taParseScope",""+parseOutput.Scope.toString());
+            
+            scopeOutput = checkScopeAndType()
+            if (scopeOutput.errors.length >= 1) {
+               putMessage("taTypeResults","Semantic errors found!");
+               for (var e=0; e<scopeOutput.errors.length; e++) {
+               putMessage("taTypeResults"," " + scopeOutput.errors[e]);
+             }
+             }
+             else {
+               if (scopeOutput.warnings.length == 0)
+                  putMessage("taTypeResults","Semantic analysis was successful!");
+                  else {
+                     putMessage("taTypeResults","Semantic analysis was successful but warnings were issued");
+                  for (var e=0; e<scopeOutput.warnings.length; e++) 
+                     putMessage("taTypeResults"," " + scopeOutput.warnings[e]);
+               }
+               putMessage("taParseScope",""+scopeOutput.Scope.toString());
+               //code = generateCode()
+             }
          }
        }
            

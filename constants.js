@@ -26,9 +26,10 @@
     const K_CHAR = "char";
     const K_TYPE = "type";
     const K_ID = "identifier";
+    const K_UNDECLAREDID = "undeclared identifier";
     const K_ANYTYPE = "any";
     const K_BOOLEAN = "boolean";
-    const K_BOOLVAL = "boolval";
+    const K_BOOLVAL = "boolean value";
     const K_FALSE = "false";
     const K_TRUE = "true";
     const K_WHILE = "while";
