@@ -6,10 +6,14 @@
       <script type="text/javascript" src="constants.js"></script>
       <script type="text/javascript" src="tree.js"></script>
       <script type="text/javascript" src="lexer.js"></script>      
-      <script type="text/javascript" src="parser.js"></script>
+      <script type="text/javascript" src="parser.js"></script>    
+      <script type="text/javascript" src="ASTbuilder.js"></script>
+      <script type="text/javascript" src="semanticanalyzer.js"></script>
+      <script type="text/javascript" src="generator.js"></script>
       <script type="text/javascript" src="javascriptcandy.js"></script>
       
       <script type="text/javascript">
+         
          function init() {
            // Clear the message boxes.
            document.getElementById("taLexResults").value = "";
@@ -18,7 +22,8 @@
            document.getElementById("taParseCST").value = "";
            document.getElementById("taParseAST").value = "";
            document.getElementById("taParseScope").value = "";
-           document.getElementById("ta3").value = "";
+           document.getElementById("taTypeResults").value = "";
+           document.getElementById("taCode").value = "Coming soon!!!!!";
            // (Re)Initialize some stuff.  
            //tokens = new Array()
            //symbols = new Array()
@@ -67,9 +72,9 @@
                putMessage("taParseResults"," " + parseOutput.errors[e]);
              }
              }
-           // Otherwise lex found no errors.
-           // Indicate lex was successful and output all tokens,
-           // then kick off parse.  
+           // Otherwise parse found no errors.
+           // Indicate parse was successful and output all tokens,
+           // then kick off semantic analysis.  
            else {
                if (parseOutput.warnings.length == 0)
                   putMessage("taParseResults","Parse was successful!");
@@ -100,33 +105,44 @@
                <form id="myform">
                   <textarea id="taSourceCode"></textarea>
                </form>
-               <script type="text/javascript">createTextAreaWithLines('taSourceCode');</script>
+               <script type="text/javascript">createTextAreaWithLines('taSourceCode');
+               
+               document.getElementById("taCode").value = "Coming soon!!!!!";</script>
                <center><input type="button" id="btnCompile" value="Compile" onclick="btnCompile_click();"/></center>
+               
                <h5>
                <pre>
-Program       ::== Statement $
-Statement     ::== print ( Expr )
-              ::== Id = Expr
-              ::== VarDecl
-              ::== { StatementList }
-StatementList ::== Statement StatementList
-              ::== <i>epsilon</i>
-Expr          ::== IntExpr
-              ::== StringExpr
-              ::== Id
-IntExpr       ::== digit op Expr
-              ::== digit
-StringExpr    ::== " CharList "
-CharList      ::== Char CharList
-              ::== Space CharList
-              ::== <i>epsilon</i>
-VarDecl       ::== Type Id
-Type          ::== int | string
-Id            ::== Char
-Char          ::== a | b | c ... z
-Space         ::== <i>the space character</i>
-digit         ::== 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 0
-op            ::== + | -
+Program        ::== Statement $
+Statement      ::== print ( Expr )
+               ::== Id = Expr
+               ::== VarDecl
+               ::== { StatementList }
+               ::== WhileStatement
+               ::== IfStatement
+WhileStatement ::== while BooleanExpr { StatementList }
+IfStatement    ::== if BooleanExpr { StatementList }
+StatementList  ::== Statement StatementList
+               ::== <i>epsilon</i>
+Expr           ::== IntExpr
+               ::== StringExpr
+               ::== BooleanExpr
+               ::== Id
+IntExpr        ::== digit op Expr
+               ::== digit
+StringExpr     ::== " CharList "
+BooleanExpr    ::== ( Expr == Expr )
+               ::== boolVal
+CharList       ::== char CharList
+               ::== space CharList
+               ::== <i>epsilon</i>
+VarDecl        ::== type Id
+Id             ::== char
+type           ::== int | string | boolean
+char           ::== a | b | c ... z
+space          ::== the space character
+digit          ::== 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 0
+boolVal        ::== false | true
+op             ::== + | -
                </pre>	
             </td>
             <td width=70% halign=left valign=top>
@@ -166,7 +182,7 @@ op            ::== + | -
                      </tr>
                      <tr>
                         <td>
-                           Abstract Syntax Tree
+                           Scope/Type Checking Results
                         </td>
                         <td>
                            Symbol Table
@@ -175,7 +191,7 @@ op            ::== + | -
                                           
                      <tr>
                         <td>
-                           <textarea id="taParseAST"></textarea><br>
+                           <textarea id="taTypeResults"></textarea><br>
                         </td>
                         <td>
                            <textarea id="taParseScope"></textarea><br>
@@ -183,13 +199,19 @@ op            ::== + | -
                      </tr>
                      
                      <tr>
-                        <td colspan=2>
-                           
+                        <td>
+                           Abstract Syntax Tree
+                        </td>
+                        <td>
+                           Code
                         </td>
                      </tr>                       
                      <tr>
-                        <td colspan=2>
-                           <textarea id="ta3"></textarea><br>
+                        <td>
+                           <textarea id="taParseAST"></textarea><br>
+                        </td>
+                        <td>
+                           <textarea id="taCode">Coming soon!!!</textarea><br>
                         </td>
                      </tr>
                   </table>

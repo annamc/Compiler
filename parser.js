@@ -1,5 +1,5 @@
 /* Anna Clayton */
-/* February 2013 */
+/* May 2013 */
 /* parser.js  */
 
     /* Turn on debug mode if things aren't working. Tons of stuff gets printed to the console to
@@ -638,12 +638,6 @@
 		node.name == B_BOOLEXPR ||
 		node.children.length == 0) {
 		    AST.addNode(node.name)
-		    //alert(node.name)
-		    //alert(AST.cur.parent.name)
-		    //alert(node.children.length)
-		    //AMC: this doesn't work yet ... :-(
-		    //if ((node.children.length == 0 && AST.cur.parent.name !== B_INTEXPR) &&
-		    //   (node.children.length == 0 && AST.cur.parent.name !== B_BOOLEXPR))
 		    if (node.children.length == 0) {
 			AST.goUp()
 		    }
@@ -669,13 +663,8 @@
 		node.name == B_IF ||
 		node.name == B_INTEXPR ||
 		node.name == B_BOOLEXPR ||
-		//(node.name == B_INTEXPR && AST.cur.parent.name != B_BOOLEXPR) ||
-		//(node.name != B_EXPR && AST.cur.parent.name == B_INTEXPR) || // aha! This is why I don't call AST.goUp in the preprocessing.
-		//node.name == B_BOOLEXPR ||
-		////node.name != B_BOOLEXPR && AST.cur.parent.name == B_BOOLEXPR ||
 		node.name == B_DECLARE) &&
 		AST.cur != AST.root) {
-		     //alert("going up from " + AST.cur.name + " to " + AST.cur.parent.name)
 		    AST.goUp()
 	    }
 	}	// Whew! Here's the end of the buildAST function.  
@@ -700,18 +689,9 @@
 	    // 2. push the child to the parent's children
 	    // 3. set the parent of the child to the parent node's parent
 	    if ((node.name == B_INTEXPR || node.name == B_BOOLEXPR) && node.children.length == 1) {
-		//alert("1 child " + node.name + "\n"+AST.toString())
-	    //if ((node.name == B_INTEXPR) && node.children.length == 1) {
-		//alert("1 child " + node.name)
-		//alert(node.children[0].name + " ")
-		//alert(AST.toString())
 		position = node.parent.children.indexOf(node)
-		//alert(position)
-		//node.parent.children.splice(position,1)
 		node.parent.children.splice(position, 1, node.children[0]);
-		//node.parent.children.push(node.children[0])
 		node.children[0].parent = node.parent
-		//alert(AST.toString())
 	    }
 	    
 	    // If an intexpr or boolexpr node is encountered and it has three children (IntExpr ::== digit op expr or BooleanExpr ::== ( expr == expr )) then
@@ -722,39 +702,23 @@
 	    // 4. Set the parent of each of the "eldest child" and "youngest child" to the middle child
 	    // 5. Add the "eldest child" and "youngest child" as children of the "middle child"
 	    // 6. Cross fingers and hope that all worked as expected
-	    
-	    // OR if a while or if node is encountered and it has four children ... 3 for boolean expression and then a statement list ... do the same thing.  
 	    if ((node.name == B_INTEXPR || node.name == B_BOOLEXPR) && node.children.length == 3) {
-		
-		//alert("3 children " + node.name + "\n"+AST.toString())
-	    //if ((node.name == B_INTEXPR) && node.children.length == 3) {
-		//alert("3 children "+ node.name)
-		//alert(node.children[0].name + " " + node.children[1].name + " " + node.children[2].name + " ")
-		//alert(AST.toString())
 		position = node.parent.children.indexOf(node)
-		//alert(position)
-		//node.parent.children.splice(position,1)
 		node.parent.children.splice(position,1,node.children[1])
 		node.children[1].parent = node.parent
 		node.children[0].parent = node.children[1]
 		node.children[2].parent = node.children[1]
 		node.children[1].children.push(node.children[0])
 		node.children[1].children.push(node.children[2])
-		//alert(AST.toString())
 	    }
 	    
-	    // if a while or if node is encountered and it has four children ... 3 for boolean expression and then a statement list ... do the same thing.  
-		// while (((1==2)==false)==true) {} $       currently does not work!
 	} // Oh look! Here's the end of the cleanAST function
     
 	
 	// Build the AST starting at the root of the CST
-	console.log("***Building AST***")
         buildAST(CST.root)
 	// Clean the AST starting at its root
-	console.log(AST.toString())
 	cleanAST(AST.root)
-	console.log(AST.toString())
         return AST
     } // End of CSTtoAST()
     
@@ -815,7 +779,7 @@
 			thisSymbol.initAt = node.children[0].name.loc
 			thisType = thisSymbol.type
 			if (checkType(thisSymbol.type,node.children[1]) == false)
-			    error("Variable " + node.children[0].name.value + " assigned a value that was an incompatible type. Expected " + thisType + ".")
+			    error("Variable " + node.children[0].name.value + " assigned a value that was an incompatible type on line " + node.children[1].name.loc + ". Expected " + thisType + ", found " + +  ".")
 		    }
 		    break;
 		}
@@ -1011,3 +975,5 @@
 	// If we get to the root node of the scope tree and haven't found the variable, return null
 	return null
     }
+    
+    
