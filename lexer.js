@@ -7,7 +7,12 @@
                           P: {lexeme: K_PRINT, value: null, warning: wP},
 			  print: {lexeme: K_PRINT, value: null},
                           char: {lexeme: K_TYPE, value: K_STRING, warning: wChar},
-			  string: {lexeme: K_TYPE, value: K_STRING}
+			  string: {lexeme: K_TYPE, value: K_STRING},
+			  boolean: {lexeme: K_TYPE, value: K_BOOLEAN},
+			  false: {lexeme: K_BOOLVAL, value: K_FALSE},
+			  true: {lexeme: K_BOOLVAL, value: K_TRUE},
+			  while: {lexeme: K_WHILE, value: null},
+			  if: {lexeme: K_IF, value: null}
                           };
                           
 

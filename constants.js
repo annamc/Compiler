@@ -20,12 +20,19 @@
     const K_QUOTE = "quote";
     const K_STRING = "string";
     const K_EQUAL = "assign";
+    const K_EQUALITY = "equals";
     const K_OPERAND = "operand";
     const K_DIGIT = "digit";
     const K_CHAR = "char";
     const K_TYPE = "type";
     const K_ID = "identifier";
     const K_ANYTYPE = "any";
+    const K_BOOLEAN = "boolean";
+    const K_BOOLVAL = "boolval";
+    const K_FALSE = "false";
+    const K_TRUE = "true";
+    const K_WHILE = "while";
+    const K_IF = "if";
 
     
     /* Errors and warnings */

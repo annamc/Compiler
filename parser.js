@@ -13,6 +13,7 @@
     /* Objects to represent the current token and the last one encountered */
     var lastToken = new Token();
     var thisToken = new Token();
+    
 	
     /* Variables to track:
      * - Number of errors and warnings found
@@ -148,21 +149,25 @@
      * 		::== Id = Expr
      * 		::== Type Id
      * 		::== { StatementList }
+     * 		::== while BooleanExpr { StatementList }
+     * 		::== if BooleanExpr { StatementList }
      * parseStatement is called from several places:
      * 	- parseProgram, to kick off parsing the entire program
      * 	- parseStatementList, to parse the next statement that was encountered
-     *  parseStatement consumes a token and matches it to one of 4 expected, then
+     *  parseStatement consumes a token and matches it to one of 6 expected, then
      *  invokes the function to process whatever statement type was encountered:
      *  	- K_PRINT: parsePrintStatement
      *  	- K_ID: parseAssignStatement
      *  	- K_TYPE: parseVarDecl
      *  	- K_LBRACKET: parseStatementList
+     *  	- K_WHILE: parseWhileStatement
+     *  	- K_IF: parseIfStatement
      *  The functions called by parseStatement are aware that the K_PRINT, K_ID,
-     *  K_TYPE, OR K_LBRACKET token have already been consumed. */
+     *  K_TYPE, K_LBRACKET, K_WHILE, or K_IF token have already been consumed. */
     function parseStatement() {
-	//debug("Parsing Statement");
+	debug("Parsing Statement");
 	CST.addNode(B_STATEMENT)
-	matchMany([K_PRINT,K_ID,K_TYPE,K_LBRACKET])
+	matchMany([K_PRINT,K_ID,K_TYPE,K_LBRACKET,K_WHILE,K_IF])
 	switch (true) {
 	    case (thisToken.kind == K_PRINT): {
 		parsePrintStatement()
@@ -187,6 +192,14 @@
 		// And since my CST to AST function assumes that all leaf nodes should belong to the AST they require some special-casing there. Pain.  
 		parseStatementList()
 		// And here's where I would add a node for the right bracket to the CST. It would only screw things up later. Let's leave it off.  
+		break
+	    }
+	    case (thisToken.kind == K_WHILE): {
+		parseWhileStatement()
+		break
+	    }
+	    case (thisToken.kind == K_IF): {
+		parseIfStatement()
 		break
 	    }
 	    default:
@@ -224,6 +237,42 @@
 	CST.goUp() // from assign node to parent (statement)
 	return
     }
+    
+    /* Parse while statement
+     * while BooleanExpr { StatementList }
+     * parseWhileStatement is called by parseStatement when the while keyword
+     * has been encountered (the identifier has been consumed). */ 
+    function parseWhileStatement() {
+	debug("Parsing While Statement")
+	CST.addNode(B_WHILE)
+	matchMany([K_BOOLVAL,K_LPAREN])
+	CST.addNode(B_BOOLEXPR)
+	parseBooleanExpr()
+	CST.goUp()
+	match(K_LBRACKET)
+	CST.addNode(B_STATEMENTLIST)
+	parseStatementList()
+	CST.goUp() // from statementlist to parent (while)
+	CST.goUp() // from while node to parent (statement)
+	return
+    }
+    
+    /* Parse if statement
+     * if BooleanExpr { StatementList }
+     * parseIfStatement is called by parseStatement when the if keyword
+     * has been encountered (the identifier has been consumed). */ 
+    function parseIfStatement() {
+	debug("Parsing If Statement")
+	CST.addNode(B_IF)
+	matchMany([K_BOOLVAL,K_LPAREN])
+	parseBooleanExpr()
+	match(K_LBRACKET)
+	CST.addNode(B_STATEMENTLIST)
+	parseStatementList()
+	CST.goUp() // from statementlist to parent (if)
+	CST.goUp() // from while node to parent (statement)
+	return
+    }
 	
     /* Parse statement list
      * StatementList	::== Statement StatementList
@@ -258,16 +307,17 @@
     /* Parse expression
      * Expr		::== IntExpr
      * 		::== CharExp
+     * 		::== BooleanExpr
      * 		::== Id
      * parseExpr is called by parseAssignmentStatement and by
      * parsePrintStatement. parseExpr consumes a token to decide
-     * whether it must parse an integer expression, character expression,
+     * whether it must parse an integer expression, character expression, boolean expression
      * or an identifier.  If identifier, no function is called since I
      * can just match on K_ID from here. */
     function parseExpr() {
 	debug("Parsing Expr")
 	CST.addNode(B_EXPR)
-	matchMany([K_DIGIT,K_QUOTE,K_ID])
+	matchMany([K_DIGIT,K_QUOTE,K_ID,K_BOOLVAL,K_LPAREN])
 	switch (true) {
 	    case (thisToken.kind == K_DIGIT): {
 		parseIntExpr()
@@ -276,6 +326,16 @@
 	    case (thisToken.kind == K_QUOTE): {
 		parseCharExpr()
 		break 
+	    }
+	    case (thisToken.kind == K_BOOLVAL): {
+		parseBooleanExpr()
+		break 
+	    }
+	    case (thisToken.kind == K_LPAREN): {
+		//CST.addNode(B_BOOLEXPR)
+		parseBooleanExpr()
+		//CST.goUp()
+		break
 	    }
 	    case (thisToken.kind == K_ID): {
 		CST.addNode(B_IDEXPR)
@@ -316,6 +376,32 @@
 	    parseExpr()
 	}
 	CST.goUp() // from int expr node to parent
+	return
+    }
+    
+    /* Parse boolean expression
+     * BooleanExpr ::== ( Expr == Expr )
+     * 		   ::== boolVal
+     * parseBooleanExpr is called by parseExpr, which has already
+     * matched on and consumed either the left paren or the boolVal token. */
+    function parseBooleanExpr() {
+	debug("Parsing Boolean Expr")
+	if (thisToken.kind == K_BOOLVAL) {
+	    CST.addNode(thisToken)
+	    CST.goUp() // from boolean value to parent
+	}
+	else {
+	    CST.addNode(B_BOOLEXPR)
+	    parseExpr()
+	    match(K_EQUALITY)
+	    CST.addNode(B_COMPARISON)
+	    CST.addNode(B_EQUALITY)
+	    CST.goUp() // from equality node to comparison node
+	   CST.goUp() // from comparison node to parent (boolean expr node)
+	    parseExpr()
+	    match(K_RPAREN)
+	    CST.goUp() // from boolexpr to parent
+	}
 	return
     }
 	
@@ -412,7 +498,21 @@
     function match(tokenKind) {
 	thisToken = checkToken(kConsume)
 	debug("Checking for " + tokenKind)
-	if (thisToken.kind == tokenKind) {
+	if (tokenKind == K_EQUALITY) {
+	    if (thisToken.kind == K_EQUAL) {
+		checkToken(kConsume)
+		if (thisToken.kind == K_EQUAL) {
+		    debug("  Found " + tokenKind + "!")
+		}
+		else {
+		    error("Did not find " + tokenKind + " at line " + thisToken.loc + ". Found " + thisToken.kind + " instead.")
+		}
+	    }
+	    else {
+		error("Did not find " + tokenKind + " at line " + thisToken.loc + ". Found " + thisToken.kind + " instead.")
+	    }
+	}
+	else if (thisToken.kind == tokenKind) {
 	    debug("  Found " + tokenKind + "!")
 	    return kSuccess
 	}
@@ -487,7 +587,13 @@
 	     * 	4. A declare statement
 	     * 		This serves as the "root" for the AST nodes describing a variable declaration
 	     * 		The declare node of the AST will have two children
-	     * 	5. An int expression
+	     *  5. A while statement
+	     *  	This serves as the "root" for the AST nodes describing a while statement
+	     * 		The while node of the AST will have two children (condition + block)
+	     *  6. An if statement
+	     *  	This serves as the "root" for the AST nodes describing an if statement
+	     * 		The if node of the AST will have two children (condition + block)
+	     * 	7. An int expression
 	     * 		Int expression is a weird one. It will originally be given a node on the AST and will have either
 	     * 			1 child: IntExpr ::== digit
 	     * 			3 children: IntExpr ::== digit op expr
@@ -507,11 +613,17 @@
 	     *  	during the first pass it was easier to make all 3 children of "intexpr" rather than try to look
 	     *  	ahead and see if an intexpr is gonna have one child or three.  If I can work all the buggies out,
 	     *  	this is the method that will be used. Note: I found and eliminated all the bugs!  This actually works!
+	     *  8. A bool expression
+	     *          Bool expression has the same weirdness as int expr. It will have 1 or 3 children:
+	     *          	1 child: BooleanExpr ::== boolval
+	     *          	3 children: BooleanExpr ::== ( expr condition [always == for now] expr )
+	     *
+	     *          Same rules apply for bool expression as int expression	
 	     *
 	     *  	A further note: Since the addNode function always changes Tree.cur to the currently added node (I did
 	     *  	away with denoting them as branch or leaf nodes when they are added, see tree.js for an explanation) I
 	     *  	need to call AST.goUp for anything I know is a leaf node (no children in the CST).
-	     *  	HOWEVER, I don't call AST.goUp for children of an intexpr, because I want to make sure the children are
+	     *  	HOWEVER, I don't call AST.goUp for children of an intexpr (or boolexpr), because I want to make sure the children are
 	     *  	on the same level in the tree. Since I call AST.goUp later, I don't call it here.  
 	     *
 	     *  	Another comment: building the AST nodes is "preprocessing" with regard to how the CST is being traversed.  
@@ -520,10 +632,19 @@
 		node.name == B_PRINT ||
 		node.name == B_ASSIGN ||
 		node.name == B_DECLARE ||
+		node.name == B_WHILE ||
+		node.name == B_IF ||
 		node.name == B_INTEXPR ||
+		node.name == B_BOOLEXPR ||
 		node.children.length == 0) {
 		    AST.addNode(node.name)
-		    if (node.children.length == 0 && AST.cur.parent.name !== B_INTEXPR) {
+		    //alert(node.name)
+		    //alert(AST.cur.parent.name)
+		    //alert(node.children.length)
+		    //AMC: this doesn't work yet ... :-(
+		    //if ((node.children.length == 0 && AST.cur.parent.name !== B_INTEXPR) &&
+		    //   (node.children.length == 0 && AST.cur.parent.name !== B_BOOLEXPR))
+		    if (node.children.length == 0) {
 			AST.goUp()
 		    }
 	    }
@@ -539,15 +660,22 @@
             for (var i = 0; i < node.children.length; i++) 
                 buildAST(node.children[i]);
             
-	    // Now back to building the AST. If we just got done with a CST statement list, print, assign, or declare and we're not currently
+	    // Now back to building the AST. If we just got done with a CST statement list, print, assign, declare, while or if and we're not currently
 	    // at the root of the AST, call AST.goUp
 	    if ((node.name == B_STATEMENTLIST ||
 		node.name == B_PRINT ||
 		node.name == B_ASSIGN ||
+		node.name == B_WHILE ||
+		node.name == B_IF ||
 		node.name == B_INTEXPR ||
-		AST.cur.parent.name == B_INTEXPR || // aha! This is why I don't call AST.goUp in the preprocessing.  
+		node.name == B_BOOLEXPR ||
+		//(node.name == B_INTEXPR && AST.cur.parent.name != B_BOOLEXPR) ||
+		//(node.name != B_EXPR && AST.cur.parent.name == B_INTEXPR) || // aha! This is why I don't call AST.goUp in the preprocessing.
+		//node.name == B_BOOLEXPR ||
+		////node.name != B_BOOLEXPR && AST.cur.parent.name == B_BOOLEXPR ||
 		node.name == B_DECLARE) &&
 		AST.cur != AST.root) {
+		     //alert("going up from " + AST.cur.name + " to " + AST.cur.parent.name)
 		    AST.goUp()
 	    }
 	}	// Whew! Here's the end of the buildAST function.  
@@ -567,17 +695,26 @@
             }
 
 	    // Here's where stuff gets done.
-	    // If an intexpr node is encountered and it has one child (so it is a case of IntExpr ::== digit) then
+	    // If an intexpr node is encountered and it has one child (so it is a case of IntExpr ::== digit or BooleanExpr ::== boolval) then
 	    // 1. remove the node from the parent's children
 	    // 2. push the child to the parent's children
 	    // 3. set the parent of the child to the parent node's parent
-	    if (node.name == B_INTEXPR && node.children.length == 1) {
-		node.parent.children.splice(node.parent.children.length-1,1)
-		node.parent.children.push(node.children[0])
+	    if ((node.name == B_INTEXPR || node.name == B_BOOLEXPR) && node.children.length == 1) {
+		//alert("1 child " + node.name + "\n"+AST.toString())
+	    //if ((node.name == B_INTEXPR) && node.children.length == 1) {
+		//alert("1 child " + node.name)
+		//alert(node.children[0].name + " ")
+		//alert(AST.toString())
+		position = node.parent.children.indexOf(node)
+		//alert(position)
+		//node.parent.children.splice(position,1)
+		node.parent.children.splice(position, 1, node.children[0]);
+		//node.parent.children.push(node.children[0])
 		node.children[0].parent = node.parent
+		//alert(AST.toString())
 	    }
 	    
-	    // If an intexpr node is encountered and it has three children (IntExpr ::== digit op expr) then
+	    // If an intexpr or boolexpr node is encountered and it has three children (IntExpr ::== digit op expr or BooleanExpr ::== ( expr == expr )) then
 	    //   (and note that the expr part of this might branch further)
 	    // 1. remove the node from the parent's children
 	    // 2. push the "middle child" to the parent's children
@@ -585,22 +722,39 @@
 	    // 4. Set the parent of each of the "eldest child" and "youngest child" to the middle child
 	    // 5. Add the "eldest child" and "youngest child" as children of the "middle child"
 	    // 6. Cross fingers and hope that all worked as expected
-	    if (node.name == B_INTEXPR && node.children.length == 3) {
-		node.parent.children.splice(node.parent.children.length-1,1)
-		node.parent.children.push(node.children[1])
+	    
+	    // OR if a while or if node is encountered and it has four children ... 3 for boolean expression and then a statement list ... do the same thing.  
+	    if ((node.name == B_INTEXPR || node.name == B_BOOLEXPR) && node.children.length == 3) {
+		
+		//alert("3 children " + node.name + "\n"+AST.toString())
+	    //if ((node.name == B_INTEXPR) && node.children.length == 3) {
+		//alert("3 children "+ node.name)
+		//alert(node.children[0].name + " " + node.children[1].name + " " + node.children[2].name + " ")
+		//alert(AST.toString())
+		position = node.parent.children.indexOf(node)
+		//alert(position)
+		//node.parent.children.splice(position,1)
+		node.parent.children.splice(position,1,node.children[1])
 		node.children[1].parent = node.parent
 		node.children[0].parent = node.children[1]
 		node.children[2].parent = node.children[1]
 		node.children[1].children.push(node.children[0])
 		node.children[1].children.push(node.children[2])
-	    }	    
+		//alert(AST.toString())
+	    }
+	    
+	    // if a while or if node is encountered and it has four children ... 3 for boolean expression and then a statement list ... do the same thing.  
+		// while (((1==2)==false)==true) {} $       currently does not work!
 	} // Oh look! Here's the end of the cleanAST function
     
 	
 	// Build the AST starting at the root of the CST
+	console.log("***Building AST***")
         buildAST(CST.root)
 	// Clean the AST starting at its root
+	console.log(AST.toString())
 	cleanAST(AST.root)
+	console.log(AST.toString())
         return AST
     } // End of CSTtoAST()
     

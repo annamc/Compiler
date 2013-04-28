@@ -16,11 +16,16 @@
     const B_EXPR = "expr"
     const B_INTEXPR = "int expr"
     const B_CHAREXPR = "char expr"
+    const B_BOOLEXPR = "boolean expr"
     const B_IDEXPR = "ident expr"
     const B_CHARLIST = "charlist"
     const B_DECLARE = "declare"
     const B_DIGIT = "digit"
     const B_OPERAND = "operand"
+    const B_EQUALITY = "equals"
+    const B_COMPARISON = "comparison"
+    const B_IF = "if"
+    const B_WHILE = "while"
     
 function Tree(treeType) {
     
@@ -35,6 +40,7 @@ function Tree(treeType) {
      */
     this.addNode = function(name) {
         // Construct the node object.
+        console.log("adding " + name + " to " + this.cur.name)
         var node = { name: name,
                      children: [],
                      parent: {}
@@ -66,6 +72,7 @@ function Tree(treeType) {
     // Note that we're done with this branch of the tree and go back up to its parent
     this.goUp = function() {
         // ... by moving "up" to our parent node (if possible).
+        console.log("going up from " + this.cur.name + " to " + this.cur.parent.name)
         if ((this.cur.parent !== null) && (this.cur.parent.name !== undefined))
         {
             this.cur = this.cur.parent;

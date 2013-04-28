@@ -1,0 +1,1 @@
+"you're an idiot" error for while(true) or while(false)
