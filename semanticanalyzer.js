@@ -122,12 +122,14 @@
 		    // if foundType is null, then the checkType method found something illegal, like digit + string
 		    if (foundType == null)
 			error("Dude, you can't print that!")
+                    break;    
 		}
 		// If we've found a while or if node, then check to make sure the boolean expression is really a boolean expression
 		case (node.name == B_WHILE || node.name == B_IF): {
     		    foundType = checkType(K_BOOLEAN,node.children[0])
 		    if (foundType != K_BOOLEAN)
 			error("Dude, you can't use that as a boolean expression!")
+                    break;    
 		}                
 		default:
 		    break;
