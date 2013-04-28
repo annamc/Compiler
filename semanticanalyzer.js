@@ -129,7 +129,11 @@
     		    foundType = checkType(K_BOOLEAN,node.children[0])
 		    if (foundType != K_BOOLEAN)
 			error("Dude, you can't use that as a boolean expression!")
-                    break;    
+                    // If the programmer did something stupid like "while true {}" or "while false {}" give them a friendly warning. 
+                    // Lots of other error checking could be done for possible/probable infinite loops, but this one comes almost for free.  
+                    if (node.name == B_WHILE && node.children[0].name.kind == K_BOOLVAL)
+                        warn("You, my friend, are going to end up with an infinite loop at line " + node.children[0].name.loc)
+                    break;
 		}                
 		default:
 		    break;

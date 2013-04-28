@@ -40,7 +40,7 @@ function Tree(treeType) {
      */
     this.addNode = function(name) {
         // Construct the node object.
-        console.log("adding " + name + " to " + this.cur.name)
+        //console.log("adding " + name + " to " + this.cur.name)
         var node = { name: name,
                      children: [],
                      parent: {}
@@ -72,7 +72,7 @@ function Tree(treeType) {
     // Note that we're done with this branch of the tree and go back up to its parent
     this.goUp = function() {
         // ... by moving "up" to our parent node (if possible).
-        console.log("going up from " + this.cur.name + " to " + this.cur.parent.name)
+        //console.log("going up from " + this.cur.name + " to " + this.cur.parent.name)
         if ((this.cur.parent !== null) && (this.cur.parent.name !== undefined))
         {
             this.cur = this.cur.parent;

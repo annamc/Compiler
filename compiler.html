@@ -23,7 +23,7 @@
            document.getElementById("taParseAST").value = "";
            document.getElementById("taParseScope").value = "";
            document.getElementById("taTypeResults").value = "";
-           document.getElementById("taCode").value = "Coming soon!!!!!";
+           document.getElementById("taCode").value = "";
            // (Re)Initialize some stuff.  
            //tokens = new Array()
            //symbols = new Array()
@@ -103,7 +103,16 @@
                      putMessage("taTypeResults"," " + scopeOutput.warnings[e]);
                }
                putMessage("taParseScope",""+scopeOutput.Scope.toString());
-               //code = generateCode()
+               codeOutput = Generate()
+               putMessage("taCode",codeOutput.code.toString())
+               putMessage("taCode","\n\nStatic table:");
+             for (var e=0; e<codeOutput.staticTable.length; e++) {
+               putMessage("taCode", codeOutput.staticTable[e].toString());
+             }
+             putMessage("taCode","\n\nJump table:")
+            for (var e=0; e<codeOutput.jumpTable.length; e++) {
+               putMessage("taCode", codeOutput.jumpTable[e].toString());
+             }
              }
          }
        }
@@ -123,9 +132,7 @@
                <form id="myform">
                   <textarea id="taSourceCode"></textarea>
                </form>
-               <script type="text/javascript">createTextAreaWithLines('taSourceCode');
-               
-               document.getElementById("taCode").value = "Coming soon!!!!!";</script>
+               <script type="text/javascript">createTextAreaWithLines('taSourceCode');</script>
                <center><input type="button" id="btnCompile" value="Compile" onclick="btnCompile_click();"/></center>
                
                <h5>
@@ -229,7 +236,7 @@ op             ::== + | -
                            <textarea id="taParseAST"></textarea><br>
                         </td>
                         <td>
-                           <textarea id="taCode">Coming soon!!!</textarea><br>
+                           <textarea id="taCode"></textarea><br>
                         </td>
                      </tr>
                   </table>
