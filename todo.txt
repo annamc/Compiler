@@ -1,0 +1,15 @@
+Still must do:
+	int expressions with plus
+	int expressions with minus
+	boolean expressions with equality
+	if
+	while
+	testcases
+	clean up display (also decide whether or not to display static table and jump table)
+		select code in code block for copy?
+	code comments
+
+Still might do:
+	create and backpatch heap table to make compiled code as small as possible
+	show assembly
+	

@@ -4,9 +4,16 @@
 
     var code
     var errors
-    var currentScope
+    var currentScope = null
     var currentScopeNum = 0
+    var thisScopeNum = 0
+    var lastScope = {}
     var nextStaticLoc = 0
+    
+    var declareType
+    var declareInit
+    var printXVal
+    var printYVal
     
     const I_LDA_CONST = "A9"
     const I_LDA_MEM = "AD"
@@ -74,7 +81,7 @@
         var entry = {loc : loc , name : name , type : type , scope : scope , offset : StaticTableEntry.counter}
         
         entry.toString = function(){
-	    return "| " + entry.loc + " | " + entry.name + " | " + entry.type + " | "  + new String("00" + entry.scope).slice(-2) + " | " + new String("00" + entry.offset).slice(-2) + " |"
+	    return "| " + entry.loc + " | " + entry.name + " | " + entry.type + " | "  + toHex2(entry.scope) + " | " + toHex2(entry.offset) + " |"
         }
     
         return entry
@@ -92,28 +99,19 @@
     }
 
     function Generate() {
+	
+	StaticTableEntry.counter = undefined
         code = new CodeStream()
         jumpTable = new Array()
         errors = new Array()
         staticTable = new Array()
-        currentScope = Scope.root
-        
-        //code.addToHeap("anna")
-        //code.addToHeap("alan")
-        //code.addToHeap("blackstone pass")
-        //code.addInstruction(I_LDA_CONST)
-        //code.addInstruction([I_LDA_CONST,"07"])
-        //code.addInstruction([I_LDA_MEM,"51","00"])
-        //code.addInstruction(I_SYS)
-        
-        //staticTable.push(new StaticTableEntry('F1XX','a',T_INT,1))
-        //staticTable.push(new StaticTableEntry('F2XX','b',T_BOOL,1))
-        //staticTable.push(new StaticTableEntry('F3XX','a',T_STRING,2))
-        //
-        //jumpTable.push(new JumpTableEntry('J0',5))
-        //jumpTable.push(new JumpTableEntry('J1',15))
+	currentScope = null
+	lastScope = null
+	currentScopeNum = 0
+	nextStaticLoc = 0
         
         generateCodeFromAST()
+	
         /* Return a pile of stuff to the caller. The caller knows what to do with all this */
 	return { errors : errors, code : code , staticTable : staticTable , jumpTable : jumpTable }
     }
@@ -121,22 +119,117 @@
     generateDeclare = function(node) {
         tempLocation = 'T' + new String("000" + nextStaticLoc).slice(-3)
         nextStaticLoc = nextStaticLoc + 1
-        if (node.children[0].value == K_INT)
-            staticTable.push(new StaticTableEntry(tempLocation,node.children[1].name.value,T_INT,currentScopeNum))
-        else
-            staticTable.push(new StaticTableEntry(tempLocation,node.children[1].name.value,T_BOOL,currentScopeNum))
-        code.addInstruction([I_LDA_CONST,"00"])
+	switch(node.children[0].name.value) {
+	    case (K_INT): 
+		declareType = T_INT
+		declareInit = "00"
+		break;
+	    case (K_BOOLEAN): 
+		declareType = T_BOOL
+		declareInit = "00"
+		break;
+	    case (K_STRING): 
+		declareType = T_STRING
+		declareInit = "FF"
+		break;
+	}
+	
+        staticTable.push(new StaticTableEntry(tempLocation,node.children[1].name.value,declareType,currentScope.num))
+        code.addInstruction([I_LDA_CONST,declareInit])
         code.addInstruction([I_STA,tempLocation.substring(0,2),tempLocation.substring(2)])    
     }
     
-    generateStringDeclare = function(node) {
-        tempLocation = 'T' + new String("000" + nextStaticLoc).slice(-3)
-        nextStaticLoc = nextStaticLoc + 1
-        staticTable.push(new StaticTableEntry(tempLocation,node.children[1].name.value,T_STRING,currentScopeNum))
-        code.addInstruction([I_LDA_CONST,"FF"])
-        code.addInstruction([I_STA,tempLocation.substring(0,2),tempLocation.substring(2)])    
+    // for an assign, node.children[0] is the identifier being assigned
+    // and node.children[1] is the value being assigned to it
+    // 	- digit -> load accum = value (A9 xx)
+    //	- string -> add to heap; load accum = currentHeapLocation (A9 xx)
+    //	- boolean value -> load accum = value (A9 00 for false or A9 01 for true)
+    //  - identifier -> load accum = from memory. Look up source location to get value from in static table
+    //  - comparison
+    //  - operand
+    //
+    // Final step:
+    //     look up location to store value from static table (will be temp, will be 4 characters)
+    // 		scope = currentScope.num
+    //		var = node.children[0].value
+    //     store value in accumulator at location (8D xx xx)
+    generateAssign = function(node) {
+	switch(node.children[1].name.kind) {
+	    case (K_DIGIT):
+		code.addInstruction([I_LDA_CONST,toHex2(node.children[1].name.value)])
+		break;
+	    case (K_BOOLVAL):
+		switch(node.children[1].name.value) {
+		    case(K_FALSE):
+			code.addInstruction([I_LDA_CONST,"00"])
+			break;
+		    case(K_TRUE):
+			code.addInstruction([I_LDA_CONST,"01"])
+			break;
+		}
+		break;
+	    case (K_STRING):
+		code.addToHeap(node.children[1].name.value)
+		code.addInstruction([I_LDA_CONST,toHex2(eval(code.currentHeapAddress+1))])
+		break;
+	    case (K_ID):
+		for (var e=0; e<staticTable.length; e++) {
+		    if (staticTable[e].name == node.children[1].name.value && staticTable[e].scope == currentScope.num) {
+			code.addInstruction([I_LDA_MEM,staticTable[e].loc.substring(0,2),staticTable[e].loc.substring(2)])
+		    }
+		}
+		break;
+	}
+	
+	for (var e=0; e<staticTable.length; e++) {
+	    if (staticTable[e].name == node.children[0].name.value && staticTable[e].scope == currentScope.num) {
+		targetLocation = staticTable[e].loc
+		break
+	    }
+	}
+        code.addInstruction([I_STA,targetLocation.substring(0,2),targetLocation.substring(2)])    
     }
     
+    generatePrint = function(node) {
+	switch(node.children[0].name.kind) {
+	    case (K_DIGIT):
+		code.addInstruction([I_LDY_CONST,toHex2(node.children[0].name.value)])
+		printXVal = "01"
+		break;
+	    case (K_BOOLVAL):
+		switch(node.children[0].name.value) {
+		    case (K_FALSE):
+			code.addInstruction([I_LDY_CONST,"00"])
+			break;
+		    case (K_TRUE):
+			code.addInstruction([I_LDY_CONST,"01"])
+			break;
+		}
+		printXVal = "01"
+		break;
+	    case (K_STRING):
+		code.addToHeap(node.children[0].name.value)
+		code.addInstruction([I_LDY_CONST,toHex2(eval(code.currentHeapAddress+1))])
+		printXVal = "02"
+		break;
+	    case (K_ID):
+		for (var e=0; e<staticTable.length; e++) {
+		    if (staticTable[e].name == node.children[0].name.value && staticTable[e].scope == currentScope.num) {
+			if (staticTable[e].type == T_STRING) {
+			    code.addInstruction([I_LDY_MEM,staticTable[e].loc.substring(0,2),staticTable[e].loc.substring(2)])
+			    printXVal = "02"
+			}
+			else {
+			    code.addInstruction([I_LDY_MEM,staticTable[e].loc.substring(0,2),staticTable[e].loc.substring(2)])
+			    printXVal = "01"
+			}
+		    }
+		}
+		break
+	}
+	code.addInstruction([I_LDX_CONST,printXVal])
+	code.addInstruction(I_SYS)
+    }    
     
     generateCodeFromAST = function() {
 
@@ -145,32 +238,28 @@
             console.log("Generate code for " + node.name)
             switch(node.name) {
                 case (B_DECLARE):
-                    if (node.children[0].name.value == K_INT || node.children[0].name.value == K_BOOLEAN)
-                        generateDeclare(node)
-                    else if (node.children[0].name.value == K_STRING)
-                        generateStringDeclare(node)
+                    generateDeclare(node)	
                     break;
                 case (B_ASSIGN):
+		    generateAssign(node)
                     break;
                 case (B_PRINT):
+		    generatePrint(node)
                     break;
                 case (B_STATEMENTLIST):
                     currentScopeNum = currentScopeNum + 1
-                        //currentScope = currentScope.children[nextchild];
-                    break;
-                default:
+		    if (currentScope == null) {
+			currentScope = Scope.root
+		    }
+		    else {
+			if (lastScope == null || currentScope.children[currentScope.children.indexOf(lastScope)] == currentScope.children.length-1)
+			    currentScope = currentScope.children[0]
+			else
+			    currentScope = currentScope.children[currentScope.children.indexOf(lastScope)+1]
+		    }
+		    currentScope.num = currentScopeNum
                     break;
             }
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
             // Now, traverse the AST.
 	    // If:
 	    // - there are no children (nothing more to traverse)
@@ -185,27 +274,43 @@
                  node.name == B_WHILE ||
                  node.name == B_IF)
                 return
-            // Else there are children, so traverse them to check the scope
+            // Else there are children, so traverse them to generate some more code
             for (var i = 0; i < node.children.length; i++)
                 generateCode(node.children[i]);
                 
             switch(node.name) {
                 case (B_STATEMENTLIST):
-                        //nextScope = currentScope.parent.children[currentScope.parent.children.indexOf(currentScope)+1]
-                        currentScope = currentScope.parent;
-                        //nextChild = nextChild + 1;
-                        //if (currentScope.children[nextChild] == undefined) {
-                        //    currentScope = currentScope.parent
-                        //    nextChild = 0
-                        //}
-                    break;
-                default:
+			lastScope = currentScope
+			currentScope = currentScope.parent
                     break;
             }
                 
 	} // End generateCode function within generateCodeFromAST()
         
+	backpatch = function() {
+	    for (var e=0; e<staticTable.length; e++) {
+		staticLoc = staticTable[e].loc
+		staticTable[e].loc = toHex2(code.nextEntry) + "00"
+		for (var f=0; f<code.code.length-1; f++) {
+		    if (code[f] == staticLoc.substring(0,2) &&  code[f+1] == staticLoc.substring(2)) {
+			code[f] = staticTable[e].loc.substring(0,2)
+			code[f+1] = staticTable[e].loc.substring(2)
+		    }
+		}
+	      code.nextEntry = code.nextEntry + 1
+	    }
+	} // End backpatch function within generateCodeFromAST()
+	
+	code.addInstruction([I_LDY_MEM,"13","00"]) // AC 13 00: Anna Clayton '13 - my version of DEADBABE
         generateCode(AST.root)
+	code.addInstruction(I_BRK) // Always end with a break
+	console.log(code.toString())
+	backpatch()
+	console.log(code.toString())
+    } // End generateCodeFromAST()
+    
+    toHex2 = function(value) {
+	return new String("00" + value.toString(16).toUpperCase()).slice(-2)
     }
     
     

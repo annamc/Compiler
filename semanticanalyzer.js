@@ -294,11 +294,12 @@
 		    thisSymbol.usedAt = node.name.loc
 		    return K_BOOLEAN
 		} 
-                else if (node.name == K_EQUALITY) {
+                else if (node.name.kind == K_COMPARISON) {
                     child1 = checkType(K_ANYTYPE,node.children[0])
                     child2 = checkType(K_ANYTYPE,node.children[1])
-                    if ((child1 == child2) && (child1 != K_STRING))
+                    if ((child1 == child2) && (child1 != K_STRING)) {
                         return K_BOOLEAN
+                    }
                     else if ((child1 == K_STRING) && child2 == K_STRING)
                         return "illegal string comparison"
                     else

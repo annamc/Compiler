@@ -43,7 +43,8 @@ function Tree(treeType) {
         //console.log("adding " + name + " to " + this.cur.name)
         var node = { name: name,
                      children: [],
-                     parent: {}
+                     parent: {},
+                     num: 0
                    };
 
         // Check to see if it needs to be the root node.
@@ -127,4 +128,5 @@ function Tree(treeType) {
         // Return the result.
         return traversalResult;
     };
+
 }

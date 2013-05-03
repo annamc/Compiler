@@ -393,7 +393,7 @@
 	    parseExpr()
 	    match(K_EQUALITY)
 	    CST.addNode(B_COMPARISON)
-	    CST.addNode(B_EQUALITY)
+	    CST.addNode(new Token(K_COMPARISON, K_EQUALITY, thisToken.loc))
 	    CST.goUp() // from equality node to comparison node
 	   CST.goUp() // from comparison node to parent (boolean expr node)
 	    parseExpr()
