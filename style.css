@@ -56,10 +56,10 @@
 	resize: none;
         white-space: nowrap;
    }
-      #taParseScope{
+   #taParseScope{
 	width:400px;
 	height:125px;
-	border-color: aqua;
+	border-color: lime;
 	border-width: thin;
 	padding: 3px;
 	resize: none;
@@ -77,7 +77,25 @@
    #taCode{
 	width:400px;
 	height:125px;
-	border-color: lime;
+	border-color: aqua;
+	border-width: thin;
+	padding: 3px;
+	resize: none;
+        white-space: nowrap;
+   }
+   #taStatic{
+	width:400px;
+	height:125px;
+	border-color: orchid;
+	border-width: thin;
+	padding: 3px;
+	resize: none;
+        white-space: pre;
+   }
+   #taJump{
+	width:400px;
+	height:125px;
+	border-color: orchid;
 	border-width: thin;
 	padding: 3px;
 	resize: none;

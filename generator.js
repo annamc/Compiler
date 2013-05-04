@@ -30,9 +30,10 @@
     const I_INC = "EE"
     const I_SYS = "FF"
     
-    const T_INT = 1
-    const T_BOOL = 2
-    const T_STRING = 3
+    const T_INT = "INT"
+    const T_BOOL = "BOO"
+    const T_STRING = "STR"
+    const T_WORK = "WRK"
     
     var CodeStream = function(){
     
@@ -70,7 +71,7 @@
         return codearray;
     }
     
-    var StaticTableEntry = function(loc, name, type, scope, offset) {
+    var StaticTableEntry = function(temp, loc, name, type, scope, offset) {
         // Keep a count of entries to use for the offset (each entry uses 1 byte)
         if (StaticTableEntry.counter == undefined) {
             StaticTableEntry.counter = 0;
@@ -78,10 +79,10 @@
         StaticTableEntry.counter++;
     }
     
-        var entry = {loc : loc , name : name , type : type , scope : scope , offset : StaticTableEntry.counter}
+        var entry = {temp : temp , loc : loc , name : name , type : type , scope : scope , offset : StaticTableEntry.counter}
         
         entry.toString = function(){
-	    return "| " + entry.loc + " | " + entry.name + " | " + entry.type + " | "  + toHex2(entry.scope) + " | " + toHex2(entry.offset) + " |"
+	    return "| " + entry.temp + " | " + entry.loc + " | " + entry.name + " | " + entry.type + " | "  + toHex2(entry.scope) + "  |"
         }
     
         return entry
@@ -108,7 +109,10 @@
 	currentScope = null
 	lastScope = null
 	currentScopeNum = 0
-	nextStaticLoc = 0
+	staticTable.push(new StaticTableEntry('T000','0',"1",T_WORK,0))
+	staticTable.push(new StaticTableEntry('T001','0',"2",T_WORK,0))
+	staticTable.push(new StaticTableEntry('T002','0',"3",T_WORK,0))
+	nextStaticLoc = 3 //0 is for work1, 1 is for work2, 2 is for work3
         
         generateCodeFromAST()
 	
@@ -134,7 +138,10 @@
 		break;
 	}
 	
-        staticTable.push(new StaticTableEntry(tempLocation,node.children[1].name.value,declareType,currentScope.num))
+	if (currentScope == null)
+	    staticTable.push(new StaticTableEntry(tempLocation,"0",node.children[1].name.value,declareType,0))
+	else    
+	    staticTable.push(new StaticTableEntry(tempLocation,"0",node.children[1].name.value,declareType,currentScope.num))
         code.addInstruction([I_LDA_CONST,declareInit])
         code.addInstruction([I_STA,tempLocation.substring(0,2),tempLocation.substring(2)])    
     }
@@ -175,21 +182,145 @@
 	    case (K_ID):
 		for (var e=0; e<staticTable.length; e++) {
 		    if (staticTable[e].name == node.children[1].name.value && staticTable[e].scope == currentScope.num) {
-			code.addInstruction([I_LDA_MEM,staticTable[e].loc.substring(0,2),staticTable[e].loc.substring(2)])
+			code.addInstruction([I_LDA_MEM,staticTable[e].temp.substring(0,2),staticTable[e].temp.substring(2)])
 		    }
 		}
 		break;
+	    case (K_OPERAND):
+		generateIntExpr(node.children[1])
+		code.addInstruction([I_LDA_MEM,'T0','00'])
+		break
+	    case (K_COMPARISON):
+		alert("assigning a comparison")
+		generateBoolExpr(node.children[1])
+		code.addInstruction([I_LDA_MEM,"T0","02"])
+		break
 	}
+	
+   
 	
 	for (var e=0; e<staticTable.length; e++) {
 	    if (staticTable[e].name == node.children[0].name.value && staticTable[e].scope == currentScope.num) {
-		targetLocation = staticTable[e].loc
+		targetLocation = staticTable[e].temp
 		break
 	    }
 	}
         code.addInstruction([I_STA,targetLocation.substring(0,2),targetLocation.substring(2)])    
     }
     
+	// wipes out work1 area (t000)
+	// wipes out accum
+    	generateIntExpr = function(node) {
+	    addAddress = "T000"
+	    switch(node.children[1].name.kind) {
+		case(K_OPERAND):
+		    generateIntExpr(node.children[1])
+		    break
+		case(K_DIGIT):
+		    code.addInstruction([I_LDA_CONST,toHex2(node.children[1].name.value)])
+		    code.addInstruction([I_STA,addAddress.substring(0,2),addAddress.substring(2)])
+		    break
+		case(K_ID):
+		    addAddress = lookUpAddress(node.children[1].name.value)
+		    break
+	    }
+
+	    if (node.name.value == K_MINUS)
+	    // do something to make addAddress appear negative
+	    ;
+
+	    code.addInstruction([I_LDA_CONST,toHex2(node.children[0].name.value)])
+	    code.addInstruction([I_ADC,addAddress.substring(0,2),addAddress.substring(2)])			
+	    code.addInstruction([I_STA,"T0","00"])
+	}
+	
+	// wipes out work1 area (t000)
+	// wipes out work2 area (t001)
+	// wipes out work3 area (t002) --- at the end of the function, t002 indicates whether the bool expr evaluated to true or false
+	// wipes out accum
+	// wipes out x reg
+    	generateBoolExpr = function(node) {
+	    switch(node.children[0].name.kind) {
+		case(K_COMPARISON):
+		    alert("left side is comparison")
+		    generateBoolExpr(node.children[0])
+		    break
+		case(K_OPERAND):
+		    alert("left side is operand")
+		    generateIntExpr(node.children[0])
+		    code.addInstruction([I_LDA_MEM,"T0","00"])
+		    break
+		case(K_DIGIT):
+		    alert("left side is digit")
+		    code.addInstruction([I_LDA_CONST,toHex2(node.children[0].name.value)])
+		    break
+		case (K_BOOLVAL):
+		    alert("left side is boolval")
+		    if (node.children[0].name.value == K_FALSE)
+			code.addInstruction([I_LDA_CONST,"00"])
+		    else
+			code.addInstruction([I_LDA_CONST,"01"])
+		    break
+		case(K_ID):
+		    alert("left side is id")
+		    address = lookUpAddress(node.children[0].name.value)
+		    code.addInstruction([I_LDA_MEM,address.substring(0,2),address.substring(2)])
+		    break
+	    }
+	    code.addInstruction([I_STA,"T0","01"])
+	    alert("looking at right side now")
+	    alert(node.children[1].name.kind)
+	    switch(node.children[1].name.kind) {
+		case(K_COMPARISON):
+		    alert("right side is comparison")
+		    generateBoolExpr(node.children[1])
+		    break
+		case(K_OPERAND):
+		    alert("right side is operand")
+		    generateIntExpr(node.children[1])
+		    code.addInstruction([I_LDA_MEM,"T0","00"])
+		    break
+		case(K_DIGIT):
+		    alert("right side is digit")
+		    code.addInstruction([I_LDA_CONST,toHex2(node.children[1].name.value)])
+		    break
+		case (K_BOOLVAL):
+		    alert("right side is boolval")
+		    if (node.children[1].name.value == K_FALSE)
+			code.addInstruction([I_LDA_CONST,"00"])
+		    else
+			code.addInstruction([I_LDA_CONST,"01"])
+		    break
+		case(K_ID):
+		    alert("right side is id")
+		    address = lookUpAddress(node.children[1].name.value)
+		    code.addInstruction([I_LDA_MEM,address.substring(0,2),address.substring(2)])
+		    break
+	    }
+	code.addInstruction([I_STA,"T0","00"]) // store accumulator (right side of comparison) at work1
+	code.addInstruction([I_LDX_MEM,"T0","01"]) // load x reg from work2 (left side of comparison)
+	code.addInstruction([I_CPX,"T0","00"]) // compare what's in the x reg (left side) to what is in memory at work1 (right side)
+	code.addInstruction([I_BNE,toHex2(12)]) // if they aren't equal, branch forward 12 bytes over 5 instructions
+	
+	code.addInstruction([I_LDA_CONST,"01"]) // 2 - load accumulator with constant 1
+	code.addInstruction([I_STA,"T0","02"]) // 3 - store the constant 1 at work3 (this means the left side was equal to the right side -- true. also used in the next bne to branch over setting work3 to false)
+	code.addInstruction([I_LDX_CONST,"02"]) //2 - load x reg with constant 2
+	code.addInstruction([I_CPX,"T0","02"]) // 3 - compare what's in the x reg (2) with what's in memory at work3 (true = 1) - will always be false and set z = 0 
+	code.addInstruction([I_BNE,toHex2(5)]) // 2 - branch (unconditionally) forward 5 bytes past 2 instructions
+	//j2:
+	code.addInstruction([I_LDA_CONST,"00"]) // 2 - load accumulator with constant 0 (false for the comparison)
+	code.addInstruction([I_STA,"T0","02"]) // 3 - store the constant 0 at work3 (this means the left side was not equal to the right side -- false)
+	//j3:
+	
+	// so at this point,
+	// accum = 0 (comparison was false) or 1 (comparison was true)
+	// x reg = 2 (constant)
+	// t000 = evaluation of the right side of the boolean
+	// t001 = evaluation of the left side of the boolean
+	// t002 = 0 if boolexpr evaluated false, 1 if it evaluated true
+	}
+    
+	
     generatePrint = function(node) {
 	switch(node.children[0].name.kind) {
 	    case (K_DIGIT):
@@ -216,17 +347,29 @@
 		for (var e=0; e<staticTable.length; e++) {
 		    if (staticTable[e].name == node.children[0].name.value && staticTable[e].scope == currentScope.num) {
 			if (staticTable[e].type == T_STRING) {
-			    code.addInstruction([I_LDY_MEM,staticTable[e].loc.substring(0,2),staticTable[e].loc.substring(2)])
+			    code.addInstruction([I_LDY_MEM,staticTable[e].temp.substring(0,2),staticTable[e].temp.substring(2)])
 			    printXVal = "02"
 			}
 			else {
-			    code.addInstruction([I_LDY_MEM,staticTable[e].loc.substring(0,2),staticTable[e].loc.substring(2)])
+			    code.addInstruction([I_LDY_MEM,staticTable[e].temp.substring(0,2),staticTable[e].temp.substring(2)])
 			    printXVal = "01"
 			}
 		    }
 		}
 		break
+	    case (K_OPERAND):
+		generateIntExpr(node.children[0])
+		code.addInstruction([I_LDY_MEM,"T0","00"])
+		printXVal = "01"
+		break
+	    case (K_COMPARISON):
+		alert("printing a boolean expression")
+		generateBoolExpr(node.children[0])
+		code.addInstruction([I_LDY_MEM,"T0","02"])
+		printXVal = "01"
+		break
 	}
+	
 	code.addInstruction([I_LDX_CONST,printXVal])
 	code.addInstruction(I_SYS)
     }    
@@ -289,7 +432,7 @@
         
 	backpatch = function() {
 	    for (var e=0; e<staticTable.length; e++) {
-		staticLoc = staticTable[e].loc
+		staticLoc = staticTable[e].temp
 		staticTable[e].loc = toHex2(code.nextEntry) + "00"
 		for (var f=0; f<code.code.length-1; f++) {
 		    if (code[f] == staticLoc.substring(0,2) &&  code[f+1] == staticLoc.substring(2)) {
@@ -312,5 +455,16 @@
     toHex2 = function(value) {
 	return new String("00" + value.toString(16).toUpperCase()).slice(-2)
     }
+    
+    	lookUpAddress = function(id) {
+	    alert("looking for id in static table: " + id)
+	    for (var e=0; e<staticTable.length; e++) {
+	    if (staticTable[e].name == id && staticTable[e].scope == currentScope.num) {
+		return staticTable[e].temp
+	    }
+	}
+	alert("didn't find it")
+	return "0000"
+	}
     
     

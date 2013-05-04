@@ -24,12 +24,8 @@
            document.getElementById("taParseScope").value = "";
            document.getElementById("taTypeResults").value = "";
            document.getElementById("taCode").value = "";
-           // (Re)Initialize some stuff.  
-           //tokens = new Array()
-           //symbols = new Array()
-           //results = new Array()
-           //symbolTree = new Tree()
-           //CST = new Tree()
+           document.getElementById("taStatic").value = "";
+           document.getElementById("taJump").value = "";
          }
        
          function btnCompile_click() {        
@@ -105,14 +101,16 @@
                putMessage("taParseScope",""+scopeOutput.Scope.toString());
                codeOutput = Generate()
                putMessage("taCode",codeOutput.code.toString())
-               putMessage("taCode","\n\nStatic table:");
+
+             putMessage("taStatic","| Temp | Loc  |Var|Type |Scope|")
+             putMessage("taStatic","-------------------------------")
              for (var e=0; e<codeOutput.staticTable.length; e++) {
-               putMessage("taCode", codeOutput.staticTable[e].toString());
+               putMessage("taStatic", codeOutput.staticTable[e].toString());
              }
-             putMessage("taCode","\n\nJump table:")
-            for (var e=0; e<codeOutput.jumpTable.length; e++) {
-               putMessage("taCode", codeOutput.jumpTable[e].toString());
+             for (var e=0; e<codeOutput.jumpTable.length; e++) {
+               putMessage("taJump", codeOutput.jumpTable[e].toString());
              }
+             document.getElementById("taCode").select();
              }
          }
        }
@@ -237,6 +235,23 @@ op             ::== + | -
                         </td>
                         <td>
                            <textarea id="taCode"></textarea><br>
+                        </td>
+                     </tr>
+                     
+                     <tr>
+                        <td>
+                           Static Table
+                        </td>
+                        <td>
+                           Jump Table
+                        </td>
+                     </tr>                       
+                     <tr>
+                        <td>
+                           <textarea id="taStatic"></textarea><br>
+                        </td>
+                        <td>
+                           <textarea id="taJump"></textarea><br>
                         </td>
                      </tr>
                   </table>
