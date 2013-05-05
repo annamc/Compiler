@@ -132,7 +132,7 @@
                     // If the programmer did something stupid like "while true {}" or "while false {}" give them a friendly warning. 
                     // Lots of other error checking could be done for possible/probable infinite loops, but this one comes almost for free.  
                     if (node.name == B_WHILE && node.children[0].name.kind == K_BOOLVAL)
-                        warn("You, my friend, are going to end up with an infinite loop at line " + node.children[0].name.loc)
+                        warn("You, my friend, are going to end up with an infinite loop at line " + node.children[0].name.loc)	
                     break;
 		}                
 		default:
@@ -149,9 +149,10 @@
             if (!node.children || node.children.length === 0 ||
 		node.name == B_PRINT ||
 		 node.name == B_ASSIGN ||
-		 node.name == B_DECLARE ||
-                 node.name == B_WHILE ||
-                 node.name == B_IF)
+//		 node.name == B_DECLARE ||
+//                 node.name == B_WHILE ||
+//                 node.name == B_IF)
+		 node.name == B_DECLARE)
                 return
             // Else there are children, so traverse them to build the scope tree and do semantic analysis
             for (var i = 0; i < node.children.length; i++)
@@ -313,6 +314,9 @@
 			if (thisSymbol == null) {
 			    error("Identifier " + node.name.value + " was used at line " + node.name.loc + " but has not been declared! ")
 			    return K_UNDECLAREDID
+			}
+			else if (thisSymbol.initAt == 0) {
+			    warn(thisSymbol.name + " was used at line " + node.name.loc + " but was not yet initialized ")
 			}
 			thisSymbol.usedAt = node.name.loc
                         return thisSymbol.type

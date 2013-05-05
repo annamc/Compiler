@@ -1,5 +1,4 @@
 Still must do:
-	boolean expressions with equality
 	if
 	while
 	testcases
@@ -59,6 +58,7 @@ generateIntExpr (node) {
 
 generateBoolExpr (node) {
 
+	
 	generate load x reg = temp1
 	generate compare byte = temp2
 
@@ -71,7 +71,10 @@ generateBoolExpr (node) {
 		generate print(false)
 	if assign,
 		generate assign(false)
-	generate compare 1 to 2
+	generate load x reg with constant 1
+	generate load accum with constant 2
+	generate store accum in temp1 loc
+	generate compare to temp1 (1==2)
 	generate branch not equal = abc
 	xyz:
 		if print, generate print(true)

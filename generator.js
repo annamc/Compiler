@@ -191,7 +191,6 @@
 		code.addInstruction([I_LDA_MEM,'T0','00'])
 		break
 	    case (K_COMPARISON):
-		alert("assigning a comparison")
 		generateBoolExpr(node.children[1])
 		code.addInstruction([I_LDA_MEM,"T0","02"])
 		break
@@ -239,60 +238,54 @@
 	// wipes out work3 area (t002) --- at the end of the function, t002 indicates whether the bool expr evaluated to true or false
 	// wipes out accum
 	// wipes out x reg
+	
+	// What I really want this function to do is grab a new byte from the static area every time it needs to store a bit of a calculation, and then at the end store the final result in
+	// T000 and free all the other bytes.
+	// Nothing else *should* be happening concurrently so I shouldn't end up with gaps in the static area; I should be able to figure out which bytes
+	// were "borrowed" and give them back.
+	// Since new declares are initialized as 00 or FF I shouldn't need to 'reset" them when I'm done.  
     	generateBoolExpr = function(node) {
 	    switch(node.children[0].name.kind) {
 		case(K_COMPARISON):
-		    alert("left side is comparison")
 		    generateBoolExpr(node.children[0])
 		    break
 		case(K_OPERAND):
-		    alert("left side is operand")
 		    generateIntExpr(node.children[0])
 		    code.addInstruction([I_LDA_MEM,"T0","00"])
 		    break
 		case(K_DIGIT):
-		    alert("left side is digit")
 		    code.addInstruction([I_LDA_CONST,toHex2(node.children[0].name.value)])
 		    break
 		case (K_BOOLVAL):
-		    alert("left side is boolval")
 		    if (node.children[0].name.value == K_FALSE)
 			code.addInstruction([I_LDA_CONST,"00"])
 		    else
 			code.addInstruction([I_LDA_CONST,"01"])
 		    break
 		case(K_ID):
-		    alert("left side is id")
 		    address = lookUpAddress(node.children[0].name.value)
 		    code.addInstruction([I_LDA_MEM,address.substring(0,2),address.substring(2)])
 		    break
 	    }
 	    code.addInstruction([I_STA,"T0","01"])
-	    alert("looking at right side now")
-	    alert(node.children[1].name.kind)
 	    switch(node.children[1].name.kind) {
 		case(K_COMPARISON):
-		    alert("right side is comparison")
 		    generateBoolExpr(node.children[1])
 		    break
 		case(K_OPERAND):
-		    alert("right side is operand")
 		    generateIntExpr(node.children[1])
 		    code.addInstruction([I_LDA_MEM,"T0","00"])
 		    break
 		case(K_DIGIT):
-		    alert("right side is digit")
 		    code.addInstruction([I_LDA_CONST,toHex2(node.children[1].name.value)])
 		    break
 		case (K_BOOLVAL):
-		    alert("right side is boolval")
 		    if (node.children[1].name.value == K_FALSE)
 			code.addInstruction([I_LDA_CONST,"00"])
 		    else
 			code.addInstruction([I_LDA_CONST,"01"])
 		    break
 		case(K_ID):
-		    alert("right side is id")
 		    address = lookUpAddress(node.children[1].name.value)
 		    code.addInstruction([I_LDA_MEM,address.substring(0,2),address.substring(2)])
 		    break
@@ -363,7 +356,6 @@
 		printXVal = "01"
 		break
 	    case (K_COMPARISON):
-		alert("printing a boolean expression")
 		generateBoolExpr(node.children[0])
 		code.addInstruction([I_LDY_MEM,"T0","02"])
 		printXVal = "01"
@@ -382,13 +374,21 @@
             switch(node.name) {
                 case (B_DECLARE):
                     generateDeclare(node)	
-                    break;
+                    break
                 case (B_ASSIGN):
 		    generateAssign(node)
-                    break;
+                    break
                 case (B_PRINT):
 		    generatePrint(node)
-                    break;
+                    break
+		case (B_IF):
+		    //generateIfCondition(node)
+		    generateCode(node.children[1])
+		    break
+		case (B_WHILE):
+		    //generateWhileCondition(node)
+		    generateCode(node.children[1])
+		    break
                 case (B_STATEMENTLIST):
                     currentScopeNum = currentScopeNum + 1
 		    if (currentScope == null) {
@@ -413,6 +413,7 @@
             if (!node.children || node.children.length === 0 ||
 		node.name == B_PRINT ||
 		 node.name == B_ASSIGN ||
+		 //node.name == B_DECLARE)
 		 node.name == B_DECLARE ||
                  node.name == B_WHILE ||
                  node.name == B_IF)
@@ -447,9 +448,7 @@
 	code.addInstruction([I_LDY_MEM,"13","00"]) // AC 13 00: Anna Clayton '13 - my version of DEADBABE
         generateCode(AST.root)
 	code.addInstruction(I_BRK) // Always end with a break
-	console.log(code.toString())
 	backpatch()
-	console.log(code.toString())
     } // End generateCodeFromAST()
     
     toHex2 = function(value) {
@@ -457,13 +456,11 @@
     }
     
     	lookUpAddress = function(id) {
-	    alert("looking for id in static table: " + id)
 	    for (var e=0; e<staticTable.length; e++) {
 	    if (staticTable[e].name == id && staticTable[e].scope == currentScope.num) {
 		return staticTable[e].temp
 	    }
 	}
-	alert("didn't find it")
 	return "0000"
 	}
     

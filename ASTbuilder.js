@@ -92,13 +92,11 @@
             for (var i = 0; i < node.children.length; i++) 
                 buildAST(node.children[i]);
             
-	    // Now back to building the AST. If we just got done with a CST statement list, print, assign, declare, while or if and we're not currently
+	    // Now back to building the AST. If we just got done with a CST statement list, print, assign, or declare and we're not currently
 	    // at the root of the AST, call AST.goUp
 	    if ((node.name == B_STATEMENTLIST ||
 		node.name == B_PRINT ||
 		node.name == B_ASSIGN ||
-		node.name == B_WHILE ||
-		node.name == B_IF ||
 		node.name == B_INTEXPR ||
 		node.name == B_BOOLEXPR ||
 		node.name == B_DECLARE) &&
