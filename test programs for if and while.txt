@@ -1,0 +1,31 @@
+if true {
+ int a
+ a = 1
+ print(a)
+ if true {
+ print(1+a)
+ }
+} $
+
+{ 
+int a
+a = 1
+while (a==1) {
+ print(a)
+ a = 1 + a
+} } $
+
+
+while1:       start while1 counter
+ while (something is true) 
+{
+  check while results and jump if it wasn't true      start while2 counter
+  do 
+  other
+  stuff
+  stop while1 counter; stop while2 counter;
+  jump while1 bytes (backwards though)
+}
+
+while2:
+

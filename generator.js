@@ -37,7 +37,12 @@
     
     var CodeStream = function(){
     
-        var codearray = {code: new Array(256) , nextEntry : 0, currentHeapAddress : 255};
+        var codearray = {code: new Array(256) , nextEntry : 0, currentHeapAddress : 255, openLoops: new Array()};
+	
+	var LoopJump = function(){
+	    var lj = { name: name, bytes : 0}
+	    return lj
+	}
     
         for (var c=0; c<256; c++)
             codearray[c] = "00"
@@ -57,8 +62,19 @@
             for (var i=0; i<newInstruction.length;i++) {
                 codearray[codearray.nextEntry] = newInstruction[i]
                 codearray.nextEntry = codearray.nextEntry + 1
-            }   
+            }
+	    for (var l=0; l<codearray.openLoops.length; l++) {
+		codearray.openLoops[l].bytes = codearray.openLoops[l].bytes + newInstruction.length
+	    }
         }
+	
+	codearray.startLoop = function(loop) {
+	    codearray.openLoops.push(loop)
+	}
+	
+	codearray.stopLoop = function() {
+	    thisOne = codearray.openLoops.pop()
+	}
         
         codearray.addToHeap = function(stringToAdd) {
             for (var i=0; i<stringToAdd.length; i++) {
@@ -88,12 +104,12 @@
         return entry
     }
     
-    var JumpTableEntry = function(jumpid, numbytes) {
+    var JumpTableEntry = function(jumpid, bytes) {
     
-        var entry = {jumpid : jumpid , numbytes : numbytes }
+        var entry = {jumpid : jumpid , bytes : bytes }
         
         entry.toString = function(){
-	    return "| " + entry.jumpid + " | " + new String("000" + entry.numbytes).slice(-3) + " |"
+	    return "|  " + entry.jumpid + "  |  " + new String("000" + entry.bytes).slice(-3) + "   |"
         }
     
         return entry
@@ -109,11 +125,12 @@
 	currentScope = null
 	lastScope = null
 	currentScopeNum = 0
+	jumpNum = 0
 	staticTable.push(new StaticTableEntry('T000','0',"1",T_WORK,0))
 	staticTable.push(new StaticTableEntry('T001','0',"2",T_WORK,0))
 	staticTable.push(new StaticTableEntry('T002','0',"3",T_WORK,0))
 	nextStaticLoc = 3 //0 is for work1, 1 is for work2, 2 is for work3
-        
+	
         generateCodeFromAST()
 	
         /* Return a pile of stuff to the caller. The caller knows what to do with all this */
@@ -313,6 +330,18 @@
 	// t002 = 0 if boolexpr evaluated false, 1 if it evaluated true
 	}
     
+	generateIfWhileCondition = function(node) {
+	    generateBoolExpr(node.children[0])
+	}
+	
+	generateWhileBranchBack = function(node) {
+	    code.addInstruction([I_LDA_CONST,"01"])
+	    code.addInstruction([I_STA,"T0","00"])
+	    code.addInstruction([I_LDX_CONST,"02"])
+	    code.addInstruction([I_CPX,"T0","00"])
+	    jumpBackBytes = 256 - jumpTable[jumpTable.length-1].bytes
+	    code.addInstruction([I_BNE,jumpBackBytes])
+	}
 	
     generatePrint = function(node) {
 	switch(node.children[0].name.kind) {
@@ -338,7 +367,7 @@
 		break;
 	    case (K_ID):
 		for (var e=0; e<staticTable.length; e++) {
-		    if (staticTable[e].name == node.children[0].name.value && staticTable[e].scope == currentScope.num) {
+		    if (staticTable[e].name == node.children[0].name.value && staticTable[e].scope <= currentScope.num) {
 			if (staticTable[e].type == T_STRING) {
 			    code.addInstruction([I_LDY_MEM,staticTable[e].temp.substring(0,2),staticTable[e].temp.substring(2)])
 			    printXVal = "02"
@@ -369,8 +398,7 @@
     generateCodeFromAST = function() {
 
         generateCode = function(node) {
-            
-            console.log("Generate code for " + node.name)
+	    
             switch(node.name) {
                 case (B_DECLARE):
                     generateDeclare(node)	
@@ -382,12 +410,40 @@
 		    generatePrint(node)
                     break
 		case (B_IF):
-		    //generateIfCondition(node)
+		    generateIfWhileCondition(node)
+
+		    
+		    	    code.addInstruction([I_LDX_CONST,"01"])       // load x with "TRUE"
+	    code.addInstruction([I_CPX,"T0","02"])	  // compare results of boolean expression with true
+	    
+	    		    thisJump = new JumpTableEntry("J"+jumpNum,0)
+		    jumpNum = jumpNum + 1
+
+		    
+		    
+	    code.addInstruction([I_BNE,thisJump.jumpid]) // if the if expression didn't evaluate to true, branch as many bytes as the if code.  right now its
+	                                                //a jump temp name later will backpatch to actual num
+						
+								    jumpTable.push(thisJump)
+		    code.startLoop(thisJump)
+		    
+		    
 		    generateCode(node.children[1])
+		    code.stopLoop()
 		    break
 		case (B_WHILE):
-		    //generateWhileCondition(node)
+		    thisJump = new JumpTableEntry("J"+jumpNum,0)
+		    jumpTable.push(thisJump)
+		    code.startLoop(thisJump)
+		    generateIfWhileCondition(node)
+		    thisJump = new JumpTableEntry("B"+jumpNum,0)
+		    jumpTable.push(thisJump)
+		    code.startLoop(thisJump)
+		    jumpNum = jumpNum + 1
 		    generateCode(node.children[1])
+		    generateWhileBranchBack()
+		    code.stopLoop() // stop "skip while contents" loop
+		    code.stopLoop() // stop "branch back to before while check" loop
 		    break
                 case (B_STATEMENTLIST):
                     currentScopeNum = currentScopeNum + 1
@@ -442,6 +498,14 @@
 		    }
 		}
 	      code.nextEntry = code.nextEntry + 1
+	    }
+	    for (var j=0; j<jumpTable.length; j++) {
+		jumpBytes = toHex2(jumpTable[j].bytes)
+		for (var f=0; f<code.code.length-1; f++) {
+		    if (code[f] == jumpTable[j].jumpid) {
+			code[f] = jumpBytes
+		    }
+		}
 	    }
 	} // End backpatch function within generateCodeFromAST()
 	

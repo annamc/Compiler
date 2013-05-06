@@ -99,7 +99,7 @@
 	border-width: thin;
 	padding: 3px;
 	resize: none;
-        white-space: nowrap;
+        white-space: pre;
    }
    .textAreaWithLines{
       font-family:courier;      
