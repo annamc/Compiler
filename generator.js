@@ -35,6 +35,12 @@
     const T_STRING = "STR"
     const T_WORK = "WRK"
     
+    const V_TRUE = "01"
+    const V_FALSE = "00"
+    
+    const V_PRINTVAL = "01"
+    const V_PRINTSTRING = "02"
+    
     var CodeStream = function(){
     
         var codearray = {code: new Array(256) , nextEntry : 0, currentHeapAddress : 255, openLoops: new Array()};
@@ -74,6 +80,7 @@
 	
 	codearray.stopLoop = function() {
 	    thisOne = codearray.openLoops.pop()
+	    alert(codearray.openLoops)
 	}
         
         codearray.addToHeap = function(stringToAdd) {
@@ -185,10 +192,10 @@
 	    case (K_BOOLVAL):
 		switch(node.children[1].name.value) {
 		    case(K_FALSE):
-			code.addInstruction([I_LDA_CONST,"00"])
+			code.addInstruction([I_LDA_CONST,V_FALSE])
 			break;
 		    case(K_TRUE):
-			code.addInstruction([I_LDA_CONST,"01"])
+			code.addInstruction([I_LDA_CONST,V_TRUE])
 			break;
 		}
 		break;
@@ -205,7 +212,7 @@
 		break;
 	    case (K_OPERAND):
 		generateIntExpr(node.children[1])
-		code.addInstruction([I_LDA_MEM,'T0','00'])
+		code.addInstruction([I_LDA_MEM,"T0","00"])
 		break
 	    case (K_COMPARISON):
 		generateBoolExpr(node.children[1])
@@ -275,9 +282,9 @@
 		    break
 		case (K_BOOLVAL):
 		    if (node.children[0].name.value == K_FALSE)
-			code.addInstruction([I_LDA_CONST,"00"])
+			code.addInstruction([I_LDA_CONST,V_FALSE])
 		    else
-			code.addInstruction([I_LDA_CONST,"01"])
+			code.addInstruction([I_LDA_CONST,V_TRUE])
 		    break
 		case(K_ID):
 		    address = lookUpAddress(node.children[0].name.value)
@@ -298,9 +305,9 @@
 		    break
 		case (K_BOOLVAL):
 		    if (node.children[1].name.value == K_FALSE)
-			code.addInstruction([I_LDA_CONST,"00"])
+			code.addInstruction([I_LDA_CONST,V_FALSE])
 		    else
-			code.addInstruction([I_LDA_CONST,"01"])
+			code.addInstruction([I_LDA_CONST,V_TRUE])
 		    break
 		case(K_ID):
 		    address = lookUpAddress(node.children[1].name.value)
@@ -312,13 +319,13 @@
 	code.addInstruction([I_CPX,"T0","00"]) // compare what's in the x reg (left side) to what is in memory at work1 (right side)
 	code.addInstruction([I_BNE,toHex2(12)]) // if they aren't equal, branch forward 12 bytes over 5 instructions
 	
-	code.addInstruction([I_LDA_CONST,"01"]) // 2 - load accumulator with constant 1
+	code.addInstruction([I_LDA_CONST,V_TRUE]) // 2 - load accumulator with constant 1
 	code.addInstruction([I_STA,"T0","02"]) // 3 - store the constant 1 at work3 (this means the left side was equal to the right side -- true. also used in the next bne to branch over setting work3 to false)
-	code.addInstruction([I_LDX_CONST,"02"]) //2 - load x reg with constant 2
-	code.addInstruction([I_CPX,"T0","02"]) // 3 - compare what's in the x reg (2) with what's in memory at work3 (true = 1) - will always be false and set z = 0 
+	code.addInstruction([I_LDX_CONST,V_FALSE]) //2 - load x reg with constant 0 (false)
+	code.addInstruction([I_CPX,"T0","02"]) // 3 - compare what's in the x reg (0) with what's in memory at work3 (true = 1) - will always be false and set z = 0 
 	code.addInstruction([I_BNE,toHex2(5)]) // 2 - branch (unconditionally) forward 5 bytes past 2 instructions
 	//j2:
-	code.addInstruction([I_LDA_CONST,"00"]) // 2 - load accumulator with constant 0 (false for the comparison)
+	code.addInstruction([I_LDA_CONST,V_FALSE]) // 2 - load accumulator with constant 0 (false for the comparison)
 	code.addInstruction([I_STA,"T0","02"]) // 3 - store the constant 0 at work3 (this means the left side was not equal to the right side -- false)
 	//j3:
 	
@@ -331,50 +338,58 @@
 	}
     
 	generateIfWhileCondition = function(node) {
-	    generateBoolExpr(node.children[0])
+	    if (node.children[0].name.kind == K_BOOLVAL) {
+		if (node.children[0].name.value == K_FALSE)
+		    code.addInstruction([I_LDA_CONST,V_FALSE])
+		else
+		    code.addInstruction([I_LDA_CONST,V_TRUE])
+		code.addInstruction([I_STA,"T0","02"])    
+	    }
+	    else
+		generateBoolExpr(node.children[0])
 	}
 	
-	generateWhileBranchBack = function(node) {
-	    code.addInstruction([I_LDA_CONST,"01"])
+	generateWhileBranchBack = function(jump) {
+	    code.addInstruction([I_LDA_CONST,V_TRUE])
 	    code.addInstruction([I_STA,"T0","00"])
-	    code.addInstruction([I_LDX_CONST,"02"])
+	    code.addInstruction([I_LDX_CONST,V_FALSE])
 	    code.addInstruction([I_CPX,"T0","00"])
-	    jumpBackBytes = 256 - jumpTable[jumpTable.length-1].bytes
-	    code.addInstruction([I_BNE,jumpBackBytes])
+	    jumpBackBytes = 256 - jump.bytes
+	    code.addInstruction([I_BNE,toHex2(jumpBackBytes)])
 	}
 	
     generatePrint = function(node) {
 	switch(node.children[0].name.kind) {
 	    case (K_DIGIT):
 		code.addInstruction([I_LDY_CONST,toHex2(node.children[0].name.value)])
-		printXVal = "01"
+		printXVal = V_PRINTVAL
 		break;
 	    case (K_BOOLVAL):
 		switch(node.children[0].name.value) {
 		    case (K_FALSE):
-			code.addInstruction([I_LDY_CONST,"00"])
+			code.addInstruction([I_LDY_CONST,V_FALSE])
 			break;
 		    case (K_TRUE):
-			code.addInstruction([I_LDY_CONST,"01"])
+			code.addInstruction([I_LDY_CONST,V_TRUE])
 			break;
 		}
-		printXVal = "01"
+		printXVal = V_PRINTVAL
 		break;
 	    case (K_STRING):
 		code.addToHeap(node.children[0].name.value)
 		code.addInstruction([I_LDY_CONST,toHex2(eval(code.currentHeapAddress+1))])
-		printXVal = "02"
+		printXVal = V_PRINTSTRING
 		break;
 	    case (K_ID):
 		for (var e=0; e<staticTable.length; e++) {
 		    if (staticTable[e].name == node.children[0].name.value && staticTable[e].scope <= currentScope.num) {
 			if (staticTable[e].type == T_STRING) {
 			    code.addInstruction([I_LDY_MEM,staticTable[e].temp.substring(0,2),staticTable[e].temp.substring(2)])
-			    printXVal = "02"
+			    printXVal = V_PRINTSTRING
 			}
 			else {
 			    code.addInstruction([I_LDY_MEM,staticTable[e].temp.substring(0,2),staticTable[e].temp.substring(2)])
-			    printXVal = "01"
+			    printXVal = V_PRINTVAL
 			}
 		    }
 		}
@@ -382,12 +397,12 @@
 	    case (K_OPERAND):
 		generateIntExpr(node.children[0])
 		code.addInstruction([I_LDY_MEM,"T0","00"])
-		printXVal = "01"
+		printXVal = V_PRINTVAL
 		break
 	    case (K_COMPARISON):
 		generateBoolExpr(node.children[0])
 		code.addInstruction([I_LDY_MEM,"T0","02"])
-		printXVal = "01"
+		printXVal = V_PRINTVAL
 		break
 	}
 	
@@ -411,20 +426,18 @@
                     break
 		case (B_IF):
 		    generateIfWhileCondition(node)
-
-		    
-		    	    code.addInstruction([I_LDX_CONST,"01"])       // load x with "TRUE"
-	    code.addInstruction([I_CPX,"T0","02"])	  // compare results of boolean expression with true
-	    
-	    		    thisJump = new JumpTableEntry("J"+jumpNum,0)
-		    jumpNum = jumpNum + 1
-
-		    
-		    
-	    code.addInstruction([I_BNE,thisJump.jumpid]) // if the if expression didn't evaluate to true, branch as many bytes as the if code.  right now its
+		    code.addInstruction([I_LDX_CONST,V_TRUE])       // load x with "TRUE"
+		    code.addInstruction([I_CPX,"T0","02"])	  // compare results of boolean expression with true
+		    thisJump = new JumpTableEntry("J"+jumpNum,0)
+		    jumpNum = jumpNum + 1    
+		    code.addInstruction([I_BNE,thisJump.jumpid]) // if the if expression didn't evaluate to true, branch as many bytes as the if code.  right now its
 	                                                //a jump temp name later will backpatch to actual num
-						
-								    jumpTable.push(thisJump)
+		    			
+		    
+		    
+		    
+		    
+		    jumpTable.push(thisJump)
 		    code.startLoop(thisJump)
 		    
 		    
@@ -432,18 +445,24 @@
 		    code.stopLoop()
 		    break
 		case (B_WHILE):
-		    thisJump = new JumpTableEntry("J"+jumpNum,0)
-		    jumpTable.push(thisJump)
-		    code.startLoop(thisJump)
+		    backJump = new JumpTableEntry("B"+jumpNum,0)
+		    jumpTable.push(backJump)
+		    code.startLoop(backJump)
 		    generateIfWhileCondition(node)
-		    thisJump = new JumpTableEntry("B"+jumpNum,0)
+		    code.addInstruction([I_LDX_CONST,V_TRUE])       // load x with "TRUE"
+		    code.addInstruction([I_CPX,"T0","02"])	  // compare results of boolean expression with true
+		    thisJump = new JumpTableEntry("J"+jumpNum,0)
+		    code.addInstruction([I_BNE,thisJump.jumpid])
+		    
+		    
 		    jumpTable.push(thisJump)
 		    code.startLoop(thisJump)
 		    jumpNum = jumpNum + 1
 		    generateCode(node.children[1])
-		    generateWhileBranchBack()
+		    generateWhileBranchBack(backJump)
 		    code.stopLoop() // stop "skip while contents" loop
 		    code.stopLoop() // stop "branch back to before while check" loop
+		    
 		    break
                 case (B_STATEMENTLIST):
                     currentScopeNum = currentScopeNum + 1
@@ -521,11 +540,11 @@
     
     	lookUpAddress = function(id) {
 	    for (var e=0; e<staticTable.length; e++) {
-	    if (staticTable[e].name == id && staticTable[e].scope == currentScope.num) {
+	    if (staticTable[e].name == id && staticTable[e].scope <= currentScope.num) {    // AMC: this will cause problems. But it might fix problems first.  
 		return staticTable[e].temp
 	    }
 	}
-	return "0000"
+	return "notfound"
 	}
     
     

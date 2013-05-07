@@ -1,0 +1,89 @@
+{
+int a
+a = 1
+while(1==a) {
+ print(a)
+ a = 1 + a
+}} $
+
+AC 13 00 A9 00 8D 5C 00 A9 01 8D 5C 00 A9 01 8D
+5A 00 AD 5C 00 8D 59 00 AE 5A 00 EC 59 00 D0 0C
+A9 01 8D 5B 00 A2 02 EC 5B 00 D0 05 A9 00 8D 5B
+00 A2 01 EC 5B 00 D0 20 AC 5C 00 A2 01 FF A9 01
+6D 00 00 8D 59 00 AD 59 00 8D 5C 00 A9 01 8D 59
+00 A2 02 EC 59 00 D0 B7 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+
+
+
+
+{
+int a
+a = 1
+int b
+b = 1
+while(1==a) {
+ print(b)
+ b = 1 + b
+ if (b==3) {
+ a = 1 + a
+}
+}} $
+
+AC 13 00 
+A9 00 
+8D 9F 00 
+A9 01 
+8D 9F 00 a = 9f00 = 1
+A9 00 
+8D A0 00 
+A9 01 
+8D A0 00 b = a000 = 1
+A9 01 
+8D 9D 00  temp2 = 9d00 = const(1)
+AD 9F 00  accum = 9f00 = a = 1
+8D 9C 00  temp1 = a = 1
+AE 9D 00  xreg = 9d00 = temp2 = 1
+EC 9C 00  compare xreg = 1 with 9c00 = temp1 = a = 1 (compare true)
+D0 0C     branch 12 bytes if not equal (no branch)
+A9 01     accum = const(1)
+8D 9E 00  9e00 = temp3 = 1 (true)
+A2 00     x reg = const(0)
+EC 9E 00  compare 1 to 0 = always false - always take next branch
+D0 05     branch 5 bytes -- this always branches!
+---branch to HERE if 1 not equals a---
+A9 00 
+8D 9E 00  9e00 = temp3 = 0 (false)
+--- branch to HERE if 1 does equal a---
+A2 01      xreg = const(1) = true
+EC 9E 00   compare xreg = const(1) with 9e00 (results of check for while(1==a))
+D0 59      if not equal (if while failed) branch 59 bytes
+AC A0 00 A2 01 FF A9 01 6D A0 00 8D 9C 00
+AD 9C 00 8D A0 00 AD A0 00 8D 9D 00 A9 03 8D 9C
+00 AE 9D 00 EC 9C 00 D0 0C A9 01 8D 9E 00 A2 00
+EC 9E 00 D0 05 A9 00 8D 9E 00 A2 01 EC 
+--- branch to HERE if 1 does not equal a ---
+9E 00 D0
+0E A9 01 6D 9F 00 8D 9C 00 AD 9C 00 8D A0 00 A9
+01 8D 9C 00 A2 00 EC 9C 00 D0 7E 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+
+
+
+

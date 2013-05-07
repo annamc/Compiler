@@ -99,6 +99,10 @@
 		node.name == B_ASSIGN ||
 		node.name == B_INTEXPR ||
 		node.name == B_BOOLEXPR ||
+		
+		node.name == B_WHILE ||
+		node.name == B_IF ||
+		
 		node.name == B_DECLARE) &&
 		AST.cur != AST.root) {
 		    AST.goUp()
