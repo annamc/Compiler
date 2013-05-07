@@ -104,8 +104,14 @@
                      putMessage("taTypeResults"," " + scopeOutput.warnings[e]);
                }
                putMessage("taParseScope",""+scopeOutput.Scope.toString());
+
                codeOutput = Generate()
-               putMessage("taCode",codeOutput.code.toString())
+
+               if (codeOutput.errors.length == 0)
+                  putMessage("taCode",codeOutput.code.toString())
+               else
+                  for (var e=0; e<codeOutput.errors.length; e++) 
+                     putMessage("taCode"," " + codeOutput.errors[e])
 
              putMessage("taStatic","| Temp | Loc  |Var|Type |Scope|")
              putMessage("taStatic","-------------------------------")

@@ -2,19 +2,25 @@
 /* May 2013 */
 /* generator.js  */
 
+    // Variables to keep track of where we are and what we've done
     var code
     var errors
-    var currentScope = null
-    var currentScopeNum = 0
-    var thisScopeNum = 0
-    var lastScope = {}
-    var nextStaticLoc = 0
+    var numErrors 
+    var currentScope
+    var currentScopeNum
+    var lastScope
+    var nextStaticLoc
+    var tempVarNum
+    var tempStaticArray
+    var tempStatic
     
+    // Variables used to build declare and print operations
     var declareType
     var declareInit
     var printXVal
     var printYVal
     
+    // Opcode constants
     const I_LDA_CONST = "A9"
     const I_LDA_MEM = "AD"
     const I_STA = "8D"
@@ -30,29 +36,27 @@
     const I_INC = "EE"
     const I_SYS = "FF"
     
+    // Static table entry types
     const T_INT = "INT"
     const T_BOOL = "BOO"
     const T_STRING = "STR"
     const T_WORK = "WRK"
     
+    // Constants 
     const V_TRUE = "01"
     const V_FALSE = "00"
-    
     const V_PRINTVAL = "01"
     const V_PRINTSTRING = "02"
-    
+     
     var CodeStream = function(){
     
         var codearray = {code: new Array(256) , nextEntry : 0, currentHeapAddress : 255, openLoops: new Array()};
-	
-	var LoopJump = function(){
-	    var lj = { name: name, bytes : 0}
-	    return lj
-	}
     
+	// Initialize all code bytes to null
         for (var c=0; c<256; c++)
             codearray[c] = "00"
             
+	// Pretty-print the code. Interestingly enough, the text area on compiler.html is juuust wide enough to accommodate the code print.      
         codearray.toString = function(){
             var string = ""
             for (var c=0; c<256; c++) {
@@ -63,26 +67,39 @@
             return string
         }
         
+	// Add a new instruction starting at nextEntry
         codearray.addInstruction = function(newInstruction) {
+	    // Concat newInstruction to an empty array so that if it was sent as a String object, it's an array now
             newInstruction = [].concat(newInstruction)
+	    // For each part of the instruction ..
             for (var i=0; i<newInstruction.length;i++) {
+		// If a complete address was sent in, it'll be 4 bytes. Split it up to 2 separate entries that take up 2 bytes each
+		if (newInstruction[i].length == 4) {
+		    newInstruction.splice(i+1, 0, newInstruction[i].substring(2))
+		    newInstruction[i] = newInstruction[i].substring(0,2)
+		}
+		// Set the next location in codearray to this byte of the new instruction and increment where nextEntry points
                 codearray[codearray.nextEntry] = newInstruction[i]
                 codearray.nextEntry = codearray.nextEntry + 1
             }
+	    // For each loop (if/while branch) that's currently "active" increment the number of bytes by the number that was just added.  
 	    for (var l=0; l<codearray.openLoops.length; l++) {
 		codearray.openLoops[l].bytes = codearray.openLoops[l].bytes + newInstruction.length
 	    }
-        }
+        } // End of addInstruction
 	
+	// Add a new jump to the array of active ones. This gets called whenever if/while are encountered
 	codearray.startLoop = function(loop) {
 	    codearray.openLoops.push(loop)
 	}
 	
+	// Pop the top jump off the array. This gets called whenever the ending of an if/while statement block is encountered
 	codearray.stopLoop = function() {
-	    thisOne = codearray.openLoops.pop()
-	    alert(codearray.openLoops)
+	    return codearray.openLoops.pop()
 	}
         
+	// Add a string to the end of the heap, "just put it there" fashion. Update the currentHeapAddress "pointer" to point to the
+	// front of the newly added string.  
         codearray.addToHeap = function(stringToAdd) {
             for (var i=0; i<stringToAdd.length; i++) {
                 codearray[codearray.currentHeapAddress-stringToAdd.length+i] = stringToAdd[i].charCodeAt(0).toString(16).toUpperCase()
@@ -92,7 +109,7 @@
         }
         
         return codearray;
-    }
+    } // End of CodeStream
     
     var StaticTableEntry = function(temp, loc, name, type, scope, offset) {
         // Keep a count of entries to use for the offset (each entry uses 1 byte)
@@ -122,28 +139,38 @@
         return entry
     }
 
+    // Here we go. Let's generate some code.  
     function Generate() {
 	
+	// Initialize stuff (mostly to null or zero)
 	StaticTableEntry.counter = undefined
         code = new CodeStream()
         jumpTable = new Array()
         errors = new Array()
+	numErrors = 0
         staticTable = new Array()
 	currentScope = null
 	lastScope = null
 	currentScopeNum = 0
 	jumpNum = 0
-	staticTable.push(new StaticTableEntry('T000','0',"1",T_WORK,0))
-	staticTable.push(new StaticTableEntry('T001','0',"2",T_WORK,0))
-	staticTable.push(new StaticTableEntry('T002','0',"3",T_WORK,0))
-	nextStaticLoc = 3 //0 is for work1, 1 is for work2, 2 is for work3
-	
+	nextStaticLoc = 0
+	tempVarNum = 1
+	tempStaticArray = new Array()
+	tempStatic = "T" + new String("000" + nextStaticLoc).slice(-3)
+	nextStaticLoc = nextStaticLoc + 1
+	// Set aside one static location as a work variable to use in calculating int exprs and bool exprs
+	staticTable.push(new StaticTableEntry(tempStatic,'0',tempVarNum,T_WORK,0))
+	tempVarNum = tempVarNum + 1
+
+	// And ... go!
         generateCodeFromAST()
 	
         /* Return a pile of stuff to the caller. The caller knows what to do with all this */
 	return { errors : errors, code : code , staticTable : staticTable , jumpTable : jumpTable }
     }
     
+    // Generate the code needed when any type of declare statement is encountered.
+    // Ints and bools are initialized as zero, strings are initialized to point to location FF (which will always be null)
     generateDeclare = function(node) {
         tempLocation = 'T' + new String("000" + nextStaticLoc).slice(-3)
         nextStaticLoc = nextStaticLoc + 1
@@ -166,8 +193,8 @@
 	    staticTable.push(new StaticTableEntry(tempLocation,"0",node.children[1].name.value,declareType,0))
 	else    
 	    staticTable.push(new StaticTableEntry(tempLocation,"0",node.children[1].name.value,declareType,currentScope.num))
-        code.addInstruction([I_LDA_CONST,declareInit])
-        code.addInstruction([I_STA,tempLocation.substring(0,2),tempLocation.substring(2)])    
+        code.addInstruction([I_LDA_CONST,declareInit]) 
+        code.addInstruction([I_STA,tempLocation])     
     }
     
     // for an assign, node.children[0] is the identifier being assigned
@@ -204,70 +231,59 @@
 		code.addInstruction([I_LDA_CONST,toHex2(eval(code.currentHeapAddress+1))])
 		break;
 	    case (K_ID):
-		for (var e=0; e<staticTable.length; e++) {
-		    if (staticTable[e].name == node.children[1].name.value && staticTable[e].scope == currentScope.num) {
-			code.addInstruction([I_LDA_MEM,staticTable[e].temp.substring(0,2),staticTable[e].temp.substring(2)])
-		    }
-		}
+		thisvariableisnotalocation = lookUpId(node.children[1].name.value).temp
+		    code.addInstruction([I_LDA_MEM,thisvariableisnotalocation])
 		break;
 	    case (K_OPERAND):
 		generateIntExpr(node.children[1])
-		code.addInstruction([I_LDA_MEM,"T0","00"])
+		code.addInstruction([I_LDA_MEM,tempStatic])
 		break
 	    case (K_COMPARISON):
 		generateBoolExpr(node.children[1])
-		code.addInstruction([I_LDA_MEM,"T0","02"])
+		code.addInstruction([I_LDA_MEM,tempStatic])
 		break
 	}
 	
-   
-	
-	for (var e=0; e<staticTable.length; e++) {
-	    if (staticTable[e].name == node.children[0].name.value && staticTable[e].scope == currentScope.num) {
-		targetLocation = staticTable[e].temp
-		break
-	    }
-	}
-        code.addInstruction([I_STA,targetLocation.substring(0,2),targetLocation.substring(2)])    
+	targetLocation = lookUpId(node.children[0].name.value).temp
+        code.addInstruction([I_STA,targetLocation])    
     }
     
-	// wipes out work1 area (t000)
-	// wipes out accum
+	// generateIntExpr is called when an assign/print statement has child node that's an operand.
+	// Will get called recursively if the [right side] child of the node is another operand
+	// Value ends up stored in memory at the tempStatic address - generateAssign and generatePrint know where to find it.
+	//
+	// Supports subtraction (by finding the 2s complement of the digit being subtracted and adding that instead)
+	// but not if the right side child is an id. If that's the case, returns a compile time error.  
     	generateIntExpr = function(node) {
-	    addAddress = "T000"
+	    addAddress = tempStatic
 	    switch(node.children[1].name.kind) {
 		case(K_OPERAND):
 		    generateIntExpr(node.children[1])
 		    break
 		case(K_DIGIT):
-		    code.addInstruction([I_LDA_CONST,toHex2(node.children[1].name.value)])
-		    code.addInstruction([I_STA,addAddress.substring(0,2),addAddress.substring(2)])
+		    if (node.name.value == K_MINUS)
+			code.addInstruction([I_LDA_CONST,toHex2(256-node.children[1].name.value)])
+		    else
+			code.addInstruction([I_LDA_CONST,toHex2(node.children[1].name.value)])
+		    code.addInstruction([I_STA,addAddress])
 		    break
 		case(K_ID):
-		    addAddress = lookUpAddress(node.children[1].name.value)
+		    if (node.name.value == K_MINUS)
+			error("Compile error: Can't subtract variables until the OS implements a subtraction operation")
+		    addAddress = lookUpId(node.children[1].name.value).temp
 		    break
 	    }
 
-	    if (node.name.value == K_MINUS)
-	    // do something to make addAddress appear negative
-	    ;
-
-	    code.addInstruction([I_LDA_CONST,toHex2(node.children[0].name.value)])
-	    code.addInstruction([I_ADC,addAddress.substring(0,2),addAddress.substring(2)])			
-	    code.addInstruction([I_STA,"T0","00"])
+	    if (node.parent.name.value == K_MINUS)
+		code.addInstruction([I_LDA_CONST,toHex2(256-node.children[0].name.value)])
+	    else
+		code.addInstruction([I_LDA_CONST,toHex2(node.children[0].name.value)])
+	    code.addInstruction([I_ADC,addAddress])			
+	    code.addInstruction([I_STA,tempStatic])
 	}
 	
-	// wipes out work1 area (t000)
-	// wipes out work2 area (t001)
-	// wipes out work3 area (t002) --- at the end of the function, t002 indicates whether the bool expr evaluated to true or false
-	// wipes out accum
-	// wipes out x reg
-	
-	// What I really want this function to do is grab a new byte from the static area every time it needs to store a bit of a calculation, and then at the end store the final result in
-	// T000 and free all the other bytes.
-	// Nothing else *should* be happening concurrently so I shouldn't end up with gaps in the static area; I should be able to figure out which bytes
-	// were "borrowed" and give them back.
-	// Since new declares are initialized as 00 or FF I shouldn't need to 'reset" them when I'm done.  
+	 
+	 // This works. Promise.  
     	generateBoolExpr = function(node) {
 	    switch(node.children[0].name.kind) {
 		case(K_COMPARISON):
@@ -275,7 +291,7 @@
 		    break
 		case(K_OPERAND):
 		    generateIntExpr(node.children[0])
-		    code.addInstruction([I_LDA_MEM,"T0","00"])
+		    code.addInstruction([I_LDA_MEM,tempStatic])
 		    break
 		case(K_DIGIT):
 		    code.addInstruction([I_LDA_CONST,toHex2(node.children[0].name.value)])
@@ -287,18 +303,25 @@
 			code.addInstruction([I_LDA_CONST,V_TRUE])
 		    break
 		case(K_ID):
-		    address = lookUpAddress(node.children[0].name.value)
-		    code.addInstruction([I_LDA_MEM,address.substring(0,2),address.substring(2)])
+		    address = lookUpId(node.children[0].name.value).temp
+		    code.addInstruction([I_LDA_MEM,address])
 		    break
 	    }
-	    code.addInstruction([I_STA,"T0","01"])
+	    
+	    newTemp = "T" + new String("000" + nextStaticLoc).slice(-3)
+	    nextStaticLoc = nextStaticLoc + 1
+	    staticTable.push(new StaticTableEntry(newTemp,'0',tempVarNum,T_WORK,0))
+	    tempVarNum = tempVarNum + 1
+	    code.addInstruction([I_STA,newTemp])
+	    tempStaticArray.push(newTemp)
+	    
 	    switch(node.children[1].name.kind) {
 		case(K_COMPARISON):
 		    generateBoolExpr(node.children[1])
 		    break
 		case(K_OPERAND):
 		    generateIntExpr(node.children[1])
-		    code.addInstruction([I_LDA_MEM,"T0","00"])
+		    code.addInstruction([I_LDA_MEM,tempStatic])
 		    break
 		case(K_DIGIT):
 		    code.addInstruction([I_LDA_CONST,toHex2(node.children[1].name.value)])
@@ -310,31 +333,27 @@
 			code.addInstruction([I_LDA_CONST,V_TRUE])
 		    break
 		case(K_ID):
-		    address = lookUpAddress(node.children[1].name.value)
-		    code.addInstruction([I_LDA_MEM,address.substring(0,2),address.substring(2)])
+		    address = lookUpId(node.children[1].name.value).temp
+		    code.addInstruction([I_LDA_MEM,address])
 		    break
 	    }
-	code.addInstruction([I_STA,"T0","00"]) // store accumulator (right side of comparison) at work1
-	code.addInstruction([I_LDX_MEM,"T0","01"]) // load x reg from work2 (left side of comparison)
-	code.addInstruction([I_CPX,"T0","00"]) // compare what's in the x reg (left side) to what is in memory at work1 (right side)
+	    newTemp = tempStaticArray.pop()
+
+	code.addInstruction([I_STA,tempStatic]) // store accumulator (right side of comparison) at work1
+	code.addInstruction([I_LDX_MEM,newTemp]) // load x reg from the temp static address grabbed for it (left side of comparison)
+	code.addInstruction([I_CPX,tempStatic]) // compare what's in the x reg (left side) to what is in memory at work1 (right side)
 	code.addInstruction([I_BNE,toHex2(12)]) // if they aren't equal, branch forward 12 bytes over 5 instructions
 	
 	code.addInstruction([I_LDA_CONST,V_TRUE]) // 2 - load accumulator with constant 1
-	code.addInstruction([I_STA,"T0","02"]) // 3 - store the constant 1 at work3 (this means the left side was equal to the right side -- true. also used in the next bne to branch over setting work3 to false)
+	code.addInstruction([I_STA,tempStatic]) // 3 - store the constant 1 at work1 (this means the left side was equal to the right side -- true. also used in the next bne to branch over setting work3 to false)
 	code.addInstruction([I_LDX_CONST,V_FALSE]) //2 - load x reg with constant 0 (false)
-	code.addInstruction([I_CPX,"T0","02"]) // 3 - compare what's in the x reg (0) with what's in memory at work3 (true = 1) - will always be false and set z = 0 
+	code.addInstruction([I_CPX,tempStatic]) // 3 - compare what's in the x reg (0) with what's in memory at work1 (true = 1) - will always be false and set z = 0 
 	code.addInstruction([I_BNE,toHex2(5)]) // 2 - branch (unconditionally) forward 5 bytes past 2 instructions
 	//j2:
 	code.addInstruction([I_LDA_CONST,V_FALSE]) // 2 - load accumulator with constant 0 (false for the comparison)
-	code.addInstruction([I_STA,"T0","02"]) // 3 - store the constant 0 at work3 (this means the left side was not equal to the right side -- false)
+	code.addInstruction([I_STA,tempStatic]) // 3 - store the constant 0 at work3 (this means the left side was not equal to the right side -- false)
 	//j3:
 	
-	// so at this point,
-	// accum = 0 (comparison was false) or 1 (comparison was true)
-	// x reg = 2 (constant)
-	// t000 = evaluation of the right side of the boolean
-	// t001 = evaluation of the left side of the boolean
-	// t002 = 0 if boolexpr evaluated false, 1 if it evaluated true
 	}
     
 	generateIfWhileCondition = function(node) {
@@ -343,7 +362,7 @@
 		    code.addInstruction([I_LDA_CONST,V_FALSE])
 		else
 		    code.addInstruction([I_LDA_CONST,V_TRUE])
-		code.addInstruction([I_STA,"T0","02"])    
+		code.addInstruction([I_STA,tempStatic])    
 	    }
 	    else
 		generateBoolExpr(node.children[0])
@@ -351,9 +370,9 @@
 	
 	generateWhileBranchBack = function(jump) {
 	    code.addInstruction([I_LDA_CONST,V_TRUE])
-	    code.addInstruction([I_STA,"T0","00"])
+	    code.addInstruction([I_STA,tempStatic])
 	    code.addInstruction([I_LDX_CONST,V_FALSE])
-	    code.addInstruction([I_CPX,"T0","00"])
+	    code.addInstruction([I_CPX,tempStatic])
 	    jumpBackBytes = 256 - jump.bytes
 	    code.addInstruction([I_BNE,toHex2(jumpBackBytes)])
 	}
@@ -381,27 +400,24 @@
 		printXVal = V_PRINTSTRING
 		break;
 	    case (K_ID):
-		for (var e=0; e<staticTable.length; e++) {
-		    if (staticTable[e].name == node.children[0].name.value && staticTable[e].scope <= currentScope.num) {
-			if (staticTable[e].type == T_STRING) {
-			    code.addInstruction([I_LDY_MEM,staticTable[e].temp.substring(0,2),staticTable[e].temp.substring(2)])
+		temp=lookUpId(node.children[0].name.value)
+			if (temp.type == T_STRING) {
+			    code.addInstruction([I_LDY_MEM,temp.temp])
 			    printXVal = V_PRINTSTRING
 			}
 			else {
-			    code.addInstruction([I_LDY_MEM,staticTable[e].temp.substring(0,2),staticTable[e].temp.substring(2)])
+			    code.addInstruction([I_LDY_MEM,temp.temp])
 			    printXVal = V_PRINTVAL
 			}
-		    }
-		}
 		break
 	    case (K_OPERAND):
 		generateIntExpr(node.children[0])
-		code.addInstruction([I_LDY_MEM,"T0","00"])
+		code.addInstruction([I_LDY_MEM,tempStatic])
 		printXVal = V_PRINTVAL
 		break
 	    case (K_COMPARISON):
 		generateBoolExpr(node.children[0])
-		code.addInstruction([I_LDY_MEM,"T0","02"])
+		code.addInstruction([I_LDY_MEM,tempStatic])
 		printXVal = V_PRINTVAL
 		break
 	}
@@ -427,20 +443,14 @@
 		case (B_IF):
 		    generateIfWhileCondition(node)
 		    code.addInstruction([I_LDX_CONST,V_TRUE])       // load x with "TRUE"
-		    code.addInstruction([I_CPX,"T0","02"])	  // compare results of boolean expression with true
+		    code.addInstruction([I_CPX,tempStatic])	  // compare results of boolean expression with true
 		    thisJump = new JumpTableEntry("J"+jumpNum,0)
 		    jumpNum = jumpNum + 1    
 		    code.addInstruction([I_BNE,thisJump.jumpid]) // if the if expression didn't evaluate to true, branch as many bytes as the if code.  right now its
 	                                                //a jump temp name later will backpatch to actual num
 		    			
-		    
-		    
-		    
-		    
 		    jumpTable.push(thisJump)
 		    code.startLoop(thisJump)
-		    
-		    
 		    generateCode(node.children[1])
 		    code.stopLoop()
 		    break
@@ -450,19 +460,16 @@
 		    code.startLoop(backJump)
 		    generateIfWhileCondition(node)
 		    code.addInstruction([I_LDX_CONST,V_TRUE])       // load x with "TRUE"
-		    code.addInstruction([I_CPX,"T0","02"])	  // compare results of boolean expression with true
+		    code.addInstruction([I_CPX,tempStatic])	  // compare results of boolean expression with true
 		    thisJump = new JumpTableEntry("J"+jumpNum,0)
 		    code.addInstruction([I_BNE,thisJump.jumpid])
-		    
-		    
 		    jumpTable.push(thisJump)
 		    code.startLoop(thisJump)
 		    jumpNum = jumpNum + 1
 		    generateCode(node.children[1])
-		    generateWhileBranchBack(backJump)
+		    generateWhileBranchBack(code.openLoops[code.openLoops.length-2])
 		    code.stopLoop() // stop "skip while contents" loop
 		    code.stopLoop() // stop "branch back to before while check" loop
-		    
 		    break
                 case (B_STATEMENTLIST):
                     currentScopeNum = currentScopeNum + 1
@@ -484,11 +491,11 @@
 	    // - the current node is a print node (the only thing to traverse is the expression being printed, which was already done)
 	    // - the current node is an assign node (the only thing to traverse is the target and value of the assign, was already done)
 	    // - the current node is a declare node (the only thing to traverse is the identifier and type, which was already done)
+	    // - the current node is an if or while node
 	    // Then return
             if (!node.children || node.children.length === 0 ||
 		node.name == B_PRINT ||
 		 node.name == B_ASSIGN ||
-		 //node.name == B_DECLARE)
 		 node.name == B_DECLARE ||
                  node.name == B_WHILE ||
                  node.name == B_IF)
@@ -532,19 +539,44 @@
         generateCode(AST.root)
 	code.addInstruction(I_BRK) // Always end with a break
 	backpatch()
+	if (code.nextEntry + (256-code.currentHeapAddress) > 256)
+	    error("Compile error: Sorry man, the heap collided with the stack. \nYou don't want to see the results")
     } // End generateCodeFromAST()
     
     toHex2 = function(value) {
 	return new String("00" + value.toString(16).toUpperCase()).slice(-2)
     }
     
-    	lookUpAddress = function(id) {
-	    for (var e=0; e<staticTable.length; e++) {
-	    if (staticTable[e].name == id && staticTable[e].scope <= currentScope.num) {    // AMC: this will cause problems. But it might fix problems first.  
-		return staticTable[e].temp
+    /* Push a message to errors and increment numErrors */
+    function error(msg) {
+	errors.push(msg)
+	numErrors = numErrors + 1
+    }
+    
+    // Find the temp address of an id in the static table, keeping in mind that it might be in a "higher" scope.  
+    lookUpId = function(id) {
+	// Start at the current node of the scope table
+	thisScope = currentScope
+	// If there is no scope table, return null
+	if (thisScope == {})
+	    return "notfound"
+	// Do while there are still parent nodes of the scope tree to check
+	while (thisScope.name !== undefined) {
+	    if (thisScope.name !== undefined) {
+		// Check each symbol in the symbol table at this scope tree node and if we find the
+		// one being looked for, return it
+		for (var e = 0; e < staticTable.length; e++) {
+		    if (staticTable[e].name == id && staticTable[e].scope == thisScope.num) {    
+		return staticTable[e]
+		 }	
+		}
 	    }
+	    // Set the pointer for this function to the parent node and check the parent node for the variable
+	    // being looked for
+	    thisScope = thisScope.parent
 	}
+	// If we get to the root node of the scope tree and haven't found the variable, return null
 	return "notfound"
-	}
+    }
     
     

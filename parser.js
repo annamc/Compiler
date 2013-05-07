@@ -244,13 +244,10 @@
 	debug("Parsing While Statement")
 	CST.addNode(B_WHILE)
 	matchMany([K_BOOLVAL,K_LPAREN])
-	CST.addNode(B_BOOLEXPR)
 	parseBooleanExpr()
-	CST.goUp()
 	match(K_LBRACKET)
 	CST.addNode(B_STATEMENTLIST)
 	parseStatementList()
-	CST.goUp() // from statementlist to parent (while)
 	CST.goUp() // from while node to parent (statement)
 	return
     }
@@ -267,8 +264,7 @@
 	match(K_LBRACKET)
 	CST.addNode(B_STATEMENTLIST)
 	parseStatementList()
-	CST.goUp() // from statementlist to parent (if)
-	CST.goUp() // from while node to parent (statement)
+	CST.goUp() // from if node to parent (statement)
 	return
     }
 	

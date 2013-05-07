@@ -131,7 +131,7 @@
 			error("Dude, you can't use that as a boolean expression!")
                     // If the programmer did something stupid like "while true {}" or "while false {}" give them a friendly warning. 
                     // Lots of other error checking could be done for possible/probable infinite loops, but this one comes almost for free.  
-                    if (node.name == B_WHILE && node.children[0].name.kind == K_BOOLVAL)
+                    if (node.name == B_WHILE && node.children[0].name.kind == K_BOOLVAL && node.children[0].name.value == K_TRUE)
                         warn("You, my friend, are going to end up with an infinite loop at line " + node.children[0].name.loc)	
                     break;
 		}                
@@ -149,9 +149,6 @@
             if (!node.children || node.children.length === 0 ||
 		node.name == B_PRINT ||
 		 node.name == B_ASSIGN ||
-//		 node.name == B_DECLARE ||
-//                 node.name == B_WHILE ||
-//                 node.name == B_IF)
 		 node.name == B_DECLARE)
                 return
             // Else there are children, so traverse them to build the scope tree and do semantic analysis
@@ -301,6 +298,8 @@
                     if ((child1 == child2) && (child1 != K_STRING)) {
                         return K_BOOLEAN
                     }
+		    if (((child1==K_COMPARISON) && child2 == K_BOOLEAN) || (child1 == K_BOOLEAN && child2 == K_COMPARISON))
+			return K_BOOLEAN
                     else if ((child1 == K_STRING) && child2 == K_STRING)
                         return "illegal string comparison"
                     else

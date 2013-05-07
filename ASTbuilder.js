@@ -99,12 +99,11 @@
 		node.name == B_ASSIGN ||
 		node.name == B_INTEXPR ||
 		node.name == B_BOOLEXPR ||
-		
 		node.name == B_WHILE ||
 		node.name == B_IF ||
-		
 		node.name == B_DECLARE) &&
 		AST.cur != AST.root) {
+		    console.log("AST.goUp called from "+AST.cur.name+" to "+AST.cur.parent.name)
 		    AST.goUp()
 	    }
 	}	// Whew! Here's the end of the buildAST function.  
